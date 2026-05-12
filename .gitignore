@@ -1,0 +1,10 @@
+.env
+.env.local
+venv/
+__pycache__/
+.tools/
+*.pyc
+*.log
+ngrok.exe
+learned_menu_weights.json
+static/foods/generated/*.png
