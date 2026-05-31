@@ -2,6 +2,7 @@ import unittest
 
 from fastapi.testclient import TestClient
 
+import main
 from main import ANSWER_KEYS, QUESTIONS, app
 
 
@@ -19,6 +20,8 @@ VALID_ANSWERS = {
 class TossApiTests(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
+        if hasattr(main, "TOSS_USAGE_EVENTS"):
+            main.TOSS_USAGE_EVENTS.clear()
 
     def test_questions_returns_public_question_payload(self):
         response = self.client.get("/api/toss/questions")
@@ -117,6 +120,48 @@ class TossApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         names = [item["name"] for item in response.json()["recommendations"]]
         self.assertNotIn("김치찌개", names)
+
+    def test_usage_event_rejects_unknown_event(self):
+        response = self.client.post(
+            "/api/toss/events",
+            json={
+                "userId": "test-user",
+                "event": "install",
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Invalid event", response.json()["detail"])
+
+    def test_usage_metrics_counts_unique_users_and_events(self):
+        events = [
+            ("u1", "app_open"),
+            ("u1", "recommendation_completed"),
+            ("u1", "feedback_clicked"),
+            ("u2", "app_open"),
+            ("u2", "restart_clicked"),
+        ]
+
+        for user_id, event in events:
+            response = self.client.post(
+                "/api/toss/events",
+                json={
+                    "userId": user_id,
+                    "event": event,
+                },
+            )
+            self.assertEqual(response.status_code, 200)
+
+        response = self.client.get("/api/toss/metrics")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["uniqueUsers"], 2)
+        self.assertEqual(body["eventsTotal"], 5)
+        self.assertEqual(body["events"]["app_open"], 2)
+        self.assertEqual(body["events"]["recommendation_completed"], 1)
+        self.assertEqual(body["events"]["feedback_clicked"], 1)
+        self.assertEqual(body["events"]["restart_clicked"], 1)
 
     def test_kakao_start_flow_still_works(self):
         response = self.client.post(

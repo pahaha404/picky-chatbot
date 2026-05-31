@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "./config";
-import type { Answers, FeedbackAction, Question, Recommendation } from "./types";
+import type { Answers, FeedbackAction, Question, Recommendation, UsageEventName } from "./types";
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -42,4 +42,15 @@ export async function sendFeedback(
     body: JSON.stringify({ userId, menuName, action, answers }),
   });
   return body.recommendations ?? null;
+}
+
+export async function trackUsageEvent(
+  userId: string,
+  event: UsageEventName,
+  metadata: Record<string, unknown> = {},
+): Promise<void> {
+  await requestJson("/api/toss/events", {
+    method: "POST",
+    body: JSON.stringify({ userId, event, metadata }),
+  });
 }

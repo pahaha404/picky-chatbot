@@ -19,3 +19,10 @@ export type Recommendation = {
 export type Answers = Record<string, string>;
 
 export type FeedbackAction = "choose" | "similar" | "dislike";
+
+export type UsageEventName =
+  | "app_open"
+  | "questions_loaded"
+  | "recommendation_completed"
+  | "feedback_clicked"
+  | "restart_clicked";

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { fetchQuestions, fetchRecommendations, sendFeedback } from "./api";
-import type { Answers, FeedbackAction, Question, Recommendation } from "./types";
+import { fetchQuestions, fetchRecommendations, sendFeedback, trackUsageEvent } from "./api";
+import type { Answers, FeedbackAction, Question, Recommendation, UsageEventName } from "./types";
 import "./styles.css";
 
 function createAnonymousUserId() {
@@ -25,6 +25,10 @@ function getAnonymousUserId() {
   return id;
 }
 
+function trackEvent(userId: string, event: UsageEventName, metadata?: Record<string, unknown>) {
+  void trackUsageEvent(userId, event, metadata).catch(() => undefined);
+}
+
 export default function App() {
   const [userId] = useState(getAnonymousUserId);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -44,16 +48,19 @@ export default function App() {
   }, [questions.length, recommendations.length, step]);
 
   useEffect(() => {
+    trackEvent(userId, "app_open");
+
     fetchQuestions()
       .then((items) => {
         setQuestions(items);
         setStatus("ready");
+        trackEvent(userId, "questions_loaded", { total: items.length });
       })
       .catch((error: Error) => {
         setStatus("error");
         setMessage(error.message);
       });
-  }, []);
+  }, [userId]);
 
   const chooseOption = async (value: string) => {
     if (!currentQuestion) {
@@ -78,6 +85,7 @@ export default function App() {
       const items = await fetchRecommendations(userId, nextAnswers);
       setRecommendations(items);
       setStatus("done");
+      trackEvent(userId, "recommendation_completed", { count: items.length });
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "추천을 가져오지 못했어요.");
@@ -89,6 +97,7 @@ export default function App() {
 
     try {
       const items = await sendFeedback(userId, menuName, action, answers);
+      trackEvent(userId, "feedback_clicked", { action, menuName });
 
       if (items) {
         setRecommendations(items);
@@ -101,6 +110,7 @@ export default function App() {
   };
 
   const restart = () => {
+    trackEvent(userId, "restart_clicked");
     setAnswers({});
     setStep(0);
     setRecommendations([]);

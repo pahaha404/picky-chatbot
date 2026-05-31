@@ -18,6 +18,14 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 USER_SESSIONS: Dict[str, Dict[str, Any]] = {}
 MENU_FEEDBACK: List[Dict[str, Any]] = []
+TOSS_USAGE_EVENTS: List[Dict[str, Any]] = []
+TOSS_USAGE_EVENT_NAMES = {
+    "app_open",
+    "questions_loaded",
+    "recommendation_completed",
+    "feedback_clicked",
+    "restart_clicked",
+}
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -960,6 +968,60 @@ def save_feedback(user_id: str, menu_name: str, action: str, answers: Dict[str, 
         print(f"WARNING: Failed to save menu feedback to Supabase: {exc}")
 
 
+def get_toss_usage_events() -> List[Dict[str, Any]]:
+    if supabase is None:
+        return TOSS_USAGE_EVENTS
+
+    try:
+        result = (
+            supabase.table("toss_usage_events")
+            .select("user_id, event_name, metadata")
+            .limit(5000)
+            .execute()
+        )
+        return result.data or []
+    except Exception as exc:
+        print(f"WARNING: Failed to fetch Toss usage events from Supabase: {exc}")
+        return TOSS_USAGE_EVENTS
+
+
+def save_toss_usage_event(user_id: str, event_name: str, metadata: Dict[str, Any]) -> None:
+    payload = {
+        "user_id": user_id,
+        "event_name": event_name,
+        "metadata": metadata,
+    }
+
+    TOSS_USAGE_EVENTS.append(payload)
+
+    if supabase is None:
+        return
+
+    try:
+        supabase.table("toss_usage_events").insert(payload).execute()
+    except Exception as exc:
+        print(f"WARNING: Failed to save Toss usage event to Supabase: {exc}")
+
+
+def summarize_toss_usage_events(records: List[Dict[str, Any]]) -> Dict[str, Any]:
+    event_counts = {event_name: 0 for event_name in sorted(TOSS_USAGE_EVENT_NAMES)}
+    unique_user_ids = set()
+
+    for record in records:
+        event_name = record.get("event_name") or record.get("event")
+        if event_name in event_counts:
+            event_counts[event_name] += 1
+
+        user_id = normalize_toss_user_id(record.get("user_id") or record.get("userId"))
+        unique_user_ids.add(user_id)
+
+    return {
+        "uniqueUsers": len(unique_user_ids),
+        "eventsTotal": sum(event_counts.values()),
+        "events": event_counts,
+    }
+
+
 def answers_overlap_ratio(current_answers: Dict[str, Any], past_answers: Dict[str, Any]) -> float:
     compared = 0
     matched = 0
@@ -1497,6 +1559,41 @@ async def toss_feedback(request: Request) -> JSONResponse:
         )
 
     return JSONResponse(content=response)
+
+
+@app.post("/api/toss/events")
+async def toss_usage_event(request: Request) -> JSONResponse:
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    user_id = normalize_toss_user_id(payload.get("userId"))
+    event_name = str(payload.get("event", "")).strip()
+    metadata = payload.get("metadata", {})
+    if not isinstance(metadata, dict):
+        metadata = {}
+
+    if event_name not in TOSS_USAGE_EVENT_NAMES:
+        return JSONResponse(
+            status_code=400,
+            content={"detail": f"Invalid event: {event_name}"},
+        )
+
+    save_toss_usage_event(user_id, event_name, metadata)
+
+    return JSONResponse(
+        content={
+            "status": "ok",
+            "userId": user_id,
+            "event": event_name,
+        }
+    )
+
+
+@app.get("/api/toss/metrics")
+def toss_usage_metrics() -> Dict[str, Any]:
+    return summarize_toss_usage_events(get_toss_usage_events())
 
 
 @app.post("/kakao/skill")
