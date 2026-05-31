@@ -69,11 +69,13 @@ npm install
 npm run dev
 ```
 
-로컬 개발에서는 다음 값을 사용합니다.
+로컬 개발에서는 `toss-miniapp/.env.development`가 다음 값을 사용합니다.
 
 ```bash
 VITE_PICKY_API_BASE_URL=http://127.0.0.1:8000
 ```
+
+배포용 빌드는 별도 값을 지정하지 않으면 Railway 백엔드 `https://picky-chatbot-production.up.railway.app`를 호출합니다.
 
 Apps in Toss QR 테스트 전에는 백엔드 CORS에 토스 도메인을 열어야 합니다.
 
