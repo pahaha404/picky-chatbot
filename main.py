@@ -37,6 +37,7 @@ KAKAO_USAGE_EVENT_NAMES = {
     "kakao_share_prompt",
 }
 KAKAO_GROWTH_TARGET_USERS = 1000
+USAGE_EVENT_TABLES = ("kakao_usage_events", "toss_usage_events")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -1186,6 +1187,48 @@ def save_kakao_usage_event(user_id: str, event_name: str, metadata: Dict[str, An
         print(f"WARNING: Failed to save Kakao usage event to Supabase: {exc}")
 
 
+def check_supabase_usage_table(table_name: str) -> Dict[str, Any]:
+    if supabase is None:
+        return {
+            "ok": False,
+            "persistence": "memory_fallback",
+            "error": "SUPABASE_URL and SUPABASE_KEY are not configured",
+        }
+
+    try:
+        supabase.table(table_name).select("id").limit(1).execute()
+        return {
+            "ok": True,
+            "persistence": "supabase",
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "persistence": "memory_fallback",
+            "error": sanitize_storage_error(exc),
+        }
+
+
+def sanitize_storage_error(exc: Exception) -> str:
+    message = str(exc)
+    for sensitive_value in (SUPABASE_URL, SUPABASE_KEY):
+        if sensitive_value:
+            message = message.replace(sensitive_value, "[redacted]")
+
+    return message[:240]
+
+
+def supabase_storage_health() -> Dict[str, Any]:
+    table_statuses = {table_name: check_supabase_usage_table(table_name) for table_name in USAGE_EVENT_TABLES}
+    all_tables_ok = all(status["ok"] for status in table_statuses.values())
+
+    return {
+        "supabaseConfigured": supabase is not None,
+        "metricsPersistence": "supabase" if all_tables_ok else "memory_fallback",
+        "tables": table_statuses,
+    }
+
+
 def summarize_kakao_usage_events(records: List[Dict[str, Any]]) -> Dict[str, Any]:
     event_counts = {event_name: 0 for event_name in sorted(KAKAO_USAGE_EVENT_NAMES)}
     unique_user_ids = set()
@@ -1903,6 +1946,11 @@ def kakao_usage_metrics() -> Dict[str, Any]:
 @app.get("/api/kakao/growth")
 def kakao_growth_metrics() -> Dict[str, Any]:
     return summarize_kakao_growth(get_kakao_usage_events())
+
+
+@app.get("/api/ops/storage")
+def ops_storage_health() -> Dict[str, Any]:
+    return supabase_storage_health()
 
 
 @app.post("/kakao/skill")

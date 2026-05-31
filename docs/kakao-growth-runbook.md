@@ -12,6 +12,11 @@
 
 Run `docs/kakao-supabase-events.sql` in the Supabase SQL Editor before relying on production metrics.
 Without this table, the chatbot can still answer, but usage events will not persist after the server restarts.
+Check the live persistence mode with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_storage_health.ps1
+```
 
 ## 1,000 User Goal
 
@@ -43,6 +48,7 @@ Campaign execution:
 1. Open `/api/kakao/metrics`.
 2. Open `/api/kakao/growth`.
    Or run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_growth_metrics.ps1`.
+   To confirm growth metrics are persisted in Supabase instead of memory, run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_storage_health.ps1`.
    To append a dated CSV snapshot, run `.\.venv\Scripts\python.exe scripts\log_growth_snapshot.py --note "weekly-check"`.
    To generate the next posting brief, run `.\.venv\Scripts\python.exe scripts\daily_growth_brief.py --note "weekly-check"`.
 3. Check total users, recommendation completions, feedback clicks, share prompts, restarts, and `campaignStarts`.

@@ -30,11 +30,15 @@ KAKAO_ANSWER_SEQUENCE = [
 class TossApiTests(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
+        self.original_supabase = main.supabase
         main.USER_SESSIONS.clear()
         if hasattr(main, "TOSS_USAGE_EVENTS"):
             main.TOSS_USAGE_EVENTS.clear()
         if hasattr(main, "KAKAO_USAGE_EVENTS"):
             main.KAKAO_USAGE_EVENTS.clear()
+
+    def tearDown(self):
+        main.supabase = self.original_supabase
 
     def post_kakao_skill(self, user_id: str, utterance: str):
         return self.client.post(
@@ -321,6 +325,82 @@ class TossApiTests(unittest.TestCase):
         self.assertEqual(body["campaignStarts"]["threads_lunch"], 1)
         self.assertEqual(body["campaignStarts"]["threads_dinner"], 1)
         self.assertEqual(body["campaignStarts"]["organic"], 1)
+
+    def test_storage_health_reports_memory_fallback_when_supabase_is_missing(self):
+        main.supabase = None
+
+        response = self.client.get("/api/ops/storage")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertFalse(body["supabaseConfigured"])
+        self.assertEqual(body["metricsPersistence"], "memory_fallback")
+        self.assertFalse(body["tables"]["kakao_usage_events"]["ok"])
+        self.assertFalse(body["tables"]["toss_usage_events"]["ok"])
+
+    def test_storage_health_reports_supabase_when_usage_tables_are_reachable(self):
+        class Query:
+            def select(self, _columns):
+                return self
+
+            def limit(self, _count):
+                return self
+
+            def execute(self):
+                class Result:
+                    data = []
+
+                return Result()
+
+        class FakeSupabase:
+            def table(self, _name):
+                return Query()
+
+        main.supabase = FakeSupabase()
+
+        response = self.client.get("/api/ops/storage")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertTrue(body["supabaseConfigured"])
+        self.assertEqual(body["metricsPersistence"], "supabase")
+        self.assertTrue(body["tables"]["kakao_usage_events"]["ok"])
+        self.assertTrue(body["tables"]["toss_usage_events"]["ok"])
+
+    def test_storage_health_marks_only_failing_usage_table(self):
+        class Query:
+            def __init__(self, should_fail=False):
+                self.should_fail = should_fail
+
+            def select(self, _columns):
+                return self
+
+            def limit(self, _count):
+                return self
+
+            def execute(self):
+                if self.should_fail:
+                    raise RuntimeError("relation does not exist")
+
+                class Result:
+                    data = []
+
+                return Result()
+
+        class FakeSupabase:
+            def table(self, name):
+                return Query(should_fail=name == "kakao_usage_events")
+
+        main.supabase = FakeSupabase()
+
+        response = self.client.get("/api/ops/storage")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["metricsPersistence"], "memory_fallback")
+        self.assertFalse(body["tables"]["kakao_usage_events"]["ok"])
+        self.assertIn("relation does not exist", body["tables"]["kakao_usage_events"]["error"])
+        self.assertTrue(body["tables"]["toss_usage_events"]["ok"])
 
 
 if __name__ == "__main__":

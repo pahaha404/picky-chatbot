@@ -39,6 +39,7 @@ PUBLIC_BASE_URL=...
 카카오 오픈빌더 Skill URL은 Railway 백엔드의 `/kakao/skill`을 사용합니다.
 챗봇 시작, 질문 답변, 추천 완료, 피드백, 공유 문구 요청, 다시 추천 이벤트는 서버에서 자동으로 기록되고 `/api/kakao/metrics`에서 집계할 수 있습니다.
 Supabase를 쓰는 운영 환경에서는 `docs/kakao-supabase-events.sql`을 SQL Editor에서 실행해 `kakao_usage_events` 테이블을 만들어야 합니다.
+운영 지표가 Supabase에 영구 저장되는지 확인하려면 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_storage_health.ps1`를 실행합니다.
 카카오 챗봇 1천 명 운영 체크리스트는 `docs/kakao-growth-runbook.md`를 기준으로 진행합니다.
 Threads 게시글, 영상 스크립트, 캠페인 시작어, 일일 실행표는 `docs/kakao-1000-growth-campaign.md`에 정리되어 있습니다.
 첫 50명 모집용 복붙 게시글, 댓글, 영상 촬영 순서는 `docs/kakao-day1-launch-pack.md`에 정리되어 있습니다.
@@ -70,6 +71,7 @@ python scripts/upload_food_images.py
 토스 인앱 MVP는 `toss-miniapp/`에 있으며, 기존 FastAPI 백엔드의 `/api/toss/*` API를 사용합니다.
 앱 열림, 질문 로드, 추천 완료, 피드백, 공유, 다시 시작 이벤트는 `/api/toss/events`에 기록되고 `/api/toss/metrics`에서 집계할 수 있습니다.
 Supabase를 쓰는 운영 환경에서는 `docs/toss-supabase-events.sql`을 SQL Editor에서 실행해 `toss_usage_events` 테이블을 만들어야 합니다.
+운영 지표 저장 상태는 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_storage_health.ps1`로 확인합니다.
 
 배포 구조:
 

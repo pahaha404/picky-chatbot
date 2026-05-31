@@ -166,6 +166,12 @@ curl.exe -sS -X POST https://picky-chatbot-production.up.railway.app/api/toss/ev
 https://picky-chatbot-production.up.railway.app/api/toss/metrics
 ```
 
+You can also check whether the backend is actually using Supabase for both Kakao and Toss growth metrics:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_storage_health.ps1
+```
+
 Security notes:
 
 - RLS is enabled for `toss_usage_events`.
