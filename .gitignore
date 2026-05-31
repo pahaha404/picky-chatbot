@@ -1,6 +1,11 @@
 .env
 .env.local
 venv/
+.venv/
+node_modules/
+toss-miniapp/node_modules/
+toss-miniapp/dist/
+toss-miniapp/*.ait
 __pycache__/
 .tools/
 *.pyc
