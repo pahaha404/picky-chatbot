@@ -1,0 +1,187 @@
+:root {
+  color: #1f2933;
+  background: #f6f8fb;
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: #f6f8fb;
+}
+
+button {
+  border: 0;
+  font: inherit;
+}
+
+.screen {
+  min-height: 100vh;
+  padding: 24px 18px 32px;
+}
+
+.topBar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.eyebrow,
+.category {
+  margin: 0 0 8px;
+  color: #3182f6;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.22;
+  letter-spacing: 0;
+}
+
+h2 {
+  margin: 2px 0 8px;
+  font-size: 22px;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.bodyText,
+.menuBody p {
+  color: #536471;
+  line-height: 1.5;
+}
+
+.progress {
+  min-width: 52px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: #e8f2ff;
+  color: #1f6feb;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.optionGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.optionButton,
+.primaryButton,
+.ghostButton {
+  min-height: 52px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.optionButton {
+  width: 100%;
+  padding: 16px;
+  background: #ffffff;
+  color: #1f2933;
+  text-align: left;
+  box-shadow: 0 1px 8px rgba(15, 23, 42, 0.08);
+}
+
+.primaryButton {
+  margin-top: 18px;
+  padding: 0 18px;
+  background: #3182f6;
+  color: #ffffff;
+}
+
+.ghostButton {
+  min-height: 42px;
+  padding: 0 14px;
+  background: #ffffff;
+  color: #3182f6;
+}
+
+.notice {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #e8f2ff;
+  color: #1f4f8f;
+  font-weight: 700;
+}
+
+.recommendationList {
+  display: grid;
+  gap: 14px;
+}
+
+.menuCard {
+  overflow: hidden;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 1px 10px rgba(15, 23, 42, 0.1);
+}
+
+.menuImage {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: #dbe4ee;
+}
+
+.menuBody {
+  padding: 16px;
+}
+
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 14px;
+}
+
+.tagRow span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #52616f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.actionRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.actionRow button {
+  min-height: 42px;
+  border-radius: 8px;
+  background: #f6f8fb;
+  color: #26323f;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+@media (min-width: 720px) {
+  .screen {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+}

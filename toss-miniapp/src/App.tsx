@@ -1,66 +1,193 @@
-import { Asset, Button, Top } from "@toss/tds-mobile";
-import "./App.css";
+import { useEffect, useMemo, useState } from "react";
 
+import { fetchQuestions, fetchRecommendations, sendFeedback } from "./api";
+import type { Answers, FeedbackAction, Question, Recommendation } from "./types";
+import "./styles.css";
 
-function App() {
-  
-  return (
-    <>
-      <Top
-        title={<Top.TitleParagraph size={22}>반가워요</Top.TitleParagraph>}
-        subtitleBottom={
-          <Top.SubtitleParagraph size={17}>
-            앱인토스 개발을 시작해 보세요.
-          </Top.SubtitleParagraph>
-        }
-      />
+function createAnonymousUserId() {
+  if (crypto.randomUUID) {
+    return `toss-${crypto.randomUUID()}`;
+  }
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px",
-          padding: "24px",
-        }}
-      >
-        <Button
-          as="a"
-          variant="weak"
-          href="https://developers-apps-in-toss.toss.im"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          개발자센터
-        </Button>
-        <Button
-          as="a"
-          variant="weak"
-          href="https://techchat-apps-in-toss.toss.im"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          개발자 커뮤니티
-        </Button>
-        
-      </div>
-
-      <div
-        style={{
-          position: "fixed",
-          bottom: "24px",
-          left: "50%",
-          transform: "translateX(-50%)",
-        }}
-      >
-        <Asset.Image
-          alt="apps in toss logo"
-          frameShape={{ width: 160 }}
-          backgroundColor="transparent"
-          src={`${import.meta.env.BASE_URL}appsintoss-logo.png`}
-        />
-      </div>
-    </>
-  );
+  return `toss-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-export default App;
+function getAnonymousUserId() {
+  const storageKey = "picky:toss-user-id";
+  const existing = localStorage.getItem(storageKey);
+
+  if (existing) {
+    return existing;
+  }
+
+  const id = createAnonymousUserId();
+  localStorage.setItem(storageKey, id);
+  return id;
+}
+
+export default function App() {
+  const [userId] = useState(getAnonymousUserId);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [answers, setAnswers] = useState<Answers>({});
+  const [step, setStep] = useState(0);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [status, setStatus] = useState<"loading" | "ready" | "done" | "error">("loading");
+  const [message, setMessage] = useState("");
+
+  const currentQuestion = questions[step];
+  const progressText = useMemo(() => {
+    if (!questions.length || recommendations.length) {
+      return "";
+    }
+
+    return `${Math.min(step + 1, questions.length)} / ${questions.length}`;
+  }, [questions.length, recommendations.length, step]);
+
+  useEffect(() => {
+    fetchQuestions()
+      .then((items) => {
+        setQuestions(items);
+        setStatus("ready");
+      })
+      .catch((error: Error) => {
+        setStatus("error");
+        setMessage(error.message);
+      });
+  }, []);
+
+  const chooseOption = async (value: string) => {
+    if (!currentQuestion) {
+      return;
+    }
+
+    const nextAnswers = {
+      ...answers,
+      [currentQuestion.key]: value,
+    };
+
+    setAnswers(nextAnswers);
+
+    if (step + 1 < questions.length) {
+      setStep(step + 1);
+      return;
+    }
+
+    setStatus("loading");
+
+    try {
+      const items = await fetchRecommendations(userId, nextAnswers);
+      setRecommendations(items);
+      setStatus("done");
+    } catch (error) {
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "추천을 가져오지 못했어요.");
+    }
+  };
+
+  const handleFeedback = async (menuName: string, action: FeedbackAction) => {
+    setMessage("");
+
+    try {
+      const items = await sendFeedback(userId, menuName, action, answers);
+
+      if (items) {
+        setRecommendations(items);
+      } else {
+        setMessage(`${menuName} 좋다. 이걸로 가자.`);
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "피드백을 보내지 못했어요.");
+    }
+  };
+
+  const restart = () => {
+    setAnswers({});
+    setStep(0);
+    setRecommendations([]);
+    setMessage("");
+    setStatus(questions.length ? "ready" : "loading");
+  };
+
+  if (status === "loading") {
+    return (
+      <main className="screen">
+        <p className="eyebrow">Picky</p>
+        <h1>메뉴를 고르고 있어요</h1>
+      </main>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <main className="screen">
+        <p className="eyebrow">Picky</p>
+        <h1>잠시 후 다시 시도해 주세요</h1>
+        <p className="bodyText">{message}</p>
+        <button className="primaryButton" onClick={() => window.location.reload()}>
+          다시 시도
+        </button>
+      </main>
+    );
+  }
+
+  if (recommendations.length) {
+    return (
+      <main className="screen resultsScreen">
+        <div className="topBar">
+          <div>
+            <p className="eyebrow">오늘의 추천</p>
+            <h1>이 중에서 골라볼까요?</h1>
+          </div>
+          <button className="ghostButton" onClick={restart}>
+            다시
+          </button>
+        </div>
+
+        {message ? <p className="notice">{message}</p> : null}
+
+        <section className="recommendationList">
+          {recommendations.map((item) => (
+            <article className="menuCard" key={item.name}>
+              {item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="menuImage" /> : null}
+              <div className="menuBody">
+                <p className="category">{item.category}</p>
+                <h2>{item.name}</h2>
+                <p>{item.shortDesc}</p>
+                <div className="tagRow">
+                  {item.tags.slice(0, 4).map((tag) => (
+                    <span key={tag}>{tag}</span>
+                  ))}
+                </div>
+                <div className="actionRow">
+                  <button onClick={() => handleFeedback(item.name, "choose")}>결정</button>
+                  <button onClick={() => handleFeedback(item.name, "similar")}>비슷한 메뉴</button>
+                  <button onClick={() => handleFeedback(item.name, "dislike")}>별로</button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="screen">
+      <div className="topBar">
+        <div>
+          <p className="eyebrow">Picky 메뉴추천</p>
+          <h1>{currentQuestion?.text ?? "오늘 뭐 먹지?"}</h1>
+        </div>
+        {progressText ? <span className="progress">{progressText}</span> : null}
+      </div>
+
+      <section className="optionGrid">
+        {currentQuestion?.options.map((option) => (
+          <button key={option.value} className="optionButton" onClick={() => chooseOption(option.value)}>
+            {option.label}
+          </button>
+        ))}
+      </section>
+    </main>
+  );
+}
