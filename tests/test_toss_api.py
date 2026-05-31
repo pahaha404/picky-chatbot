@@ -138,6 +138,7 @@ class TossApiTests(unittest.TestCase):
             ("u1", "app_open"),
             ("u1", "recommendation_completed"),
             ("u1", "feedback_clicked"),
+            ("u1", "share_clicked"),
             ("u2", "app_open"),
             ("u2", "restart_clicked"),
         ]
@@ -157,10 +158,11 @@ class TossApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertEqual(body["uniqueUsers"], 2)
-        self.assertEqual(body["eventsTotal"], 5)
+        self.assertEqual(body["eventsTotal"], 6)
         self.assertEqual(body["events"]["app_open"], 2)
         self.assertEqual(body["events"]["recommendation_completed"], 1)
         self.assertEqual(body["events"]["feedback_clicked"], 1)
+        self.assertEqual(body["events"]["share_clicked"], 1)
         self.assertEqual(body["events"]["restart_clicked"], 1)
 
     def test_kakao_start_flow_still_works(self):

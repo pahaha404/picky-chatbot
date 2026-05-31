@@ -114,6 +114,12 @@ h2 {
   color: #3182f6;
 }
 
+.resultActions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
 .notice {
   margin: 0 0 14px;
   padding: 12px 14px;

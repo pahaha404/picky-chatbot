@@ -92,6 +92,7 @@ create table if not exists toss_usage_events (
             'questions_loaded',
             'recommendation_completed',
             'feedback_clicked',
+            'share_clicked',
             'restart_clicked'
         )
     ),

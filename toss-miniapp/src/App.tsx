@@ -29,6 +29,15 @@ function trackEvent(userId: string, event: UsageEventName, metadata?: Record<str
   void trackUsageEvent(userId, event, metadata).catch(() => undefined);
 }
 
+function buildShareText(items: Recommendation[]) {
+  const menuNames = items
+    .slice(0, 3)
+    .map((item) => item.name)
+    .join(", ");
+
+  return `오늘 PICKY 추천 메뉴: ${menuNames}\n토스에서 Picky 메뉴추천으로 골라봤어요.`;
+}
+
 export default function App() {
   const [userId] = useState(getAnonymousUserId);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -118,6 +127,29 @@ export default function App() {
     setStatus(questions.length ? "ready" : "loading");
   };
 
+  const shareRecommendations = async () => {
+    const text = buildShareText(recommendations);
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "Picky 메뉴추천",
+          text,
+        });
+        setMessage("공유를 열었어요.");
+      } else {
+        await navigator.clipboard.writeText(text);
+        setMessage("공유 문구를 복사했어요.");
+      }
+
+      trackEvent(userId, "share_clicked", {
+        menus: recommendations.map((item) => item.name),
+      });
+    } catch {
+      setMessage("공유 문구를 만들지 못했어요.");
+    }
+  };
+
   if (status === "loading") {
     return (
       <main className="screen">
@@ -148,9 +180,14 @@ export default function App() {
             <p className="eyebrow">오늘의 추천</p>
             <h1>이 중에서 골라볼까요?</h1>
           </div>
-          <button className="ghostButton" onClick={restart}>
-            다시
-          </button>
+          <div className="resultActions">
+            <button className="ghostButton" onClick={shareRecommendations}>
+              공유
+            </button>
+            <button className="ghostButton" onClick={restart}>
+              다시
+            </button>
+          </div>
         </div>
 
         {message ? <p className="notice">{message}</p> : null}

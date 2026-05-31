@@ -24,6 +24,7 @@ TOSS_USAGE_EVENT_NAMES = {
     "questions_loaded",
     "recommendation_completed",
     "feedback_clicked",
+    "share_clicked",
     "restart_clicked",
 }
 
