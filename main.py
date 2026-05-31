@@ -34,6 +34,7 @@ KAKAO_USAGE_EVENT_NAMES = {
     "kakao_recommendation_completed",
     "kakao_feedback_clicked",
     "kakao_restart",
+    "kakao_share_prompt",
 }
 KAKAO_GROWTH_TARGET_USERS = 1000
 
@@ -749,6 +750,7 @@ KAKAO_QUICK_REPLY_LABELS = {
     "나눠먹기": "나눠먹기",
     "배달·포장": "배달/포장",
     "술·야식 같이": "술/야식",
+    "친구에게 공유": "공유",
 }
 
 KAKAO_QUESTION_TITLES = {
@@ -910,9 +912,20 @@ def build_recommendation_response(recommendations: List[Dict[str, Any]]) -> Dict
                     }
                 }
             ],
-            "quickReplies": make_quick_replies(["다시 추천"]),
+            "quickReplies": make_quick_replies(["다시 추천", "친구에게 공유"]),
         },
     }
+
+
+def build_kakao_share_prompt_response() -> Dict[str, Any]:
+    return kakao_text_response(
+        text=(
+            "친구한테 이렇게 보내줘.\n\n"
+            "카톡에서 메뉴 골라주는 Picky 써봤는데 꽤 편해.\n"
+            "점심이면 `점심추천`, 저녁이면 `저녁추천`, 그냥 테스트는 `피키추천` 보내면 바로 시작돼."
+        ),
+        quick_replies=make_quick_replies(["오늘 뭐 먹지", "다시 추천"]),
+    )
 
 
 # ---------------------------------------------------------
@@ -1491,6 +1504,17 @@ def is_reset_message(normalized: str) -> bool:
     return normalized in reset_keywords
 
 
+def is_share_prompt_message(normalized: str) -> bool:
+    share_keywords = {
+        "공유",
+        "친구에게공유",
+        "친구공유",
+        "공유하기",
+        "친구에게보내기",
+    }
+    return normalized in share_keywords
+
+
 def parse_answer(normalized: str, options: Dict[str, str]) -> Optional[str]:
     if normalized in options:
         return options[normalized]
@@ -1642,6 +1666,10 @@ def handle_pickly_flow(user_id: str, utterance: str) -> Dict[str, Any]:
         save_kakao_usage_event(user_id, "kakao_restart", {})
         reset_session(user_id)
         return build_question_response(0)
+
+    if is_share_prompt_message(normalized):
+        save_kakao_usage_event(user_id, "kakao_share_prompt", {})
+        return build_kakao_share_prompt_response()
 
     start_campaign = kakao_start_campaign(normalized)
     if start_campaign is not None:

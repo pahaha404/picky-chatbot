@@ -243,6 +243,33 @@ class TossApiTests(unittest.TestCase):
         self.assertEqual(card["title"], "아하, 김치찌개로 결정!")
         self.assertIn("/static/picky/picky-aha-card.png", card["thumbnail"]["imageUrl"])
 
+    def test_kakao_recommendation_response_includes_share_quick_reply(self):
+        user_id = "kakao-share-reply-user"
+        self.post_kakao_skill(user_id, "오늘 뭐 먹지")
+
+        for answer in KAKAO_ANSWER_SEQUENCE:
+            response = self.post_kakao_skill(user_id, answer)
+            self.assertEqual(response.status_code, 200)
+
+        quick_replies = response.json()["template"]["quickReplies"]
+        self.assertIn(
+            {"action": "message", "label": "공유", "messageText": "친구에게 공유"},
+            quick_replies,
+        )
+
+    def test_kakao_share_prompt_returns_invite_copy_and_tracks_event(self):
+        response = self.post_kakao_skill("kakao-share-user", "친구에게 공유")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        text = body["template"]["outputs"][0]["simpleText"]["text"]
+        self.assertIn("Picky", text)
+        self.assertIn("피키추천", text)
+        self.assertIn("점심추천", text)
+
+        metrics = self.client.get("/api/kakao/metrics").json()
+        self.assertEqual(metrics["events"]["kakao_share_prompt"], 1)
+
     def test_kakao_usage_metrics_counts_funnel_events(self):
         user_id = "kakao-metrics-user"
         response = self.post_kakao_skill(user_id, "오늘 뭐 먹지")

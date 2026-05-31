@@ -21,6 +21,7 @@ Track the funnel with these events:
 - `kakao_question_answered`: user answered a question
 - `kakao_recommendation_completed`: user reached menu recommendations
 - `kakao_feedback_clicked`: user clicked choose, similar, or dislike
+- `kakao_share_prompt`: user requested a copyable friend invite message
 - `kakao_restart`: user requested another recommendation
 
 Operational targets:
@@ -42,7 +43,7 @@ Campaign execution:
 2. Open `/api/kakao/growth`.
    Or run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_growth_metrics.ps1`.
    To append a dated CSV snapshot, run `.\.venv\Scripts\python.exe scripts\log_growth_snapshot.py --note "weekly-check"`.
-3. Check total users, recommendation completions, feedback clicks, restarts, and `campaignStarts`.
+3. Check total users, recommendation completions, feedback clicks, share prompts, restarts, and `campaignStarts`.
 4. If many users start but do not complete seven questions, shorten or reorder questions.
 5. If many users complete but do not click feedback, improve card copy and button labels.
 6. If one campaign keyword wins, post 3 more variations of that angle.

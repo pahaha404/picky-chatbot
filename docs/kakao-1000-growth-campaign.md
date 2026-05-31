@@ -12,6 +12,7 @@ Supporting metrics:
 
 - `completionRate`: `kakao_recommendation_completed / kakao_start`
 - `feedbackRate`: `kakao_feedback_clicked / kakao_recommendation_completed`
+- `share prompts`: `kakao_share_prompt`
 - `campaignStarts`: start count by campaign keyword
 
 ## Campaign Keywords
@@ -262,7 +263,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_growth_metrics
 .\.venv\Scripts\python.exe scripts\log_growth_snapshot.py --note "daily-check"
 ```
 
-5. Write down the best-performing keyword and repeat that angle the next day.
+5. Write down the best-performing keyword, share prompts, and repeat that angle the next day.
 
 Weekly:
 

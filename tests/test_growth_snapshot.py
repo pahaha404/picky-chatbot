@@ -35,6 +35,7 @@ class GrowthSnapshotTests(unittest.TestCase):
                     "kakao_start": 14,
                     "kakao_recommendation_completed": 10,
                     "kakao_feedback_clicked": 1,
+                    "kakao_share_prompt": 2,
                 },
             },
             toss={
@@ -55,6 +56,7 @@ class GrowthSnapshotTests(unittest.TestCase):
         self.assertEqual(row["kakao_unique_users"], 12)
         self.assertEqual(row["kakao_completion_rate"], 62.5)
         self.assertEqual(row["kakao_campaign_starts"], "threads_lunch=8;brand=4")
+        self.assertEqual(row["kakao_share_prompts"], 2)
         self.assertEqual(row["toss_unique_users"], 3)
         self.assertEqual(row["toss_shares"], 1)
 

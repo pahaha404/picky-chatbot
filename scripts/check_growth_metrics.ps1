@@ -21,6 +21,14 @@ function Format-Percent($Value) {
     return "$Value%"
 }
 
+function Metric($Value) {
+    if ($null -eq $Value) {
+        return 0
+    }
+
+    return $Value
+}
+
 $base = $BaseUrl.TrimEnd("/")
 $kakao = Get-Json "$base/api/kakao/growth"
 $toss = Get-Json "$base/api/toss/metrics"
@@ -30,14 +38,15 @@ Write-Host "Base URL: $base"
 Write-Host ""
 
 Write-Host "Kakao"
-Write-Host "  Unique users: $($kakao.uniqueUsers) / $($kakao.targetUsers)"
-Write-Host "  Remaining: $($kakao.remainingUsers)"
+Write-Host "  Unique users: $(Metric $kakao.uniqueUsers) / $(Metric $kakao.targetUsers)"
+Write-Host "  Remaining: $(Metric $kakao.remainingUsers)"
 Write-Host "  Progress: $(Format-Percent $kakao.progressPercent)"
 Write-Host "  Completion rate: $(Format-Percent $kakao.completionRate)"
 Write-Host "  Feedback rate: $(Format-Percent $kakao.feedbackRate)"
-Write-Host "  Starts: $($kakao.events.kakao_start)"
-Write-Host "  Completions: $($kakao.events.kakao_recommendation_completed)"
-Write-Host "  Feedback clicks: $($kakao.events.kakao_feedback_clicked)"
+Write-Host "  Starts: $(Metric $kakao.events.kakao_start)"
+Write-Host "  Completions: $(Metric $kakao.events.kakao_recommendation_completed)"
+Write-Host "  Feedback clicks: $(Metric $kakao.events.kakao_feedback_clicked)"
+Write-Host "  Share prompts: $(Metric $kakao.events.kakao_share_prompt)"
 Write-Host ""
 
 Write-Host "Kakao campaign starts"
@@ -56,11 +65,11 @@ if ($campaignProperties.Count -eq 0) {
 Write-Host ""
 
 Write-Host "Toss"
-Write-Host "  Unique users: $($toss.uniqueUsers)"
-Write-Host "  Total events: $($toss.eventsTotal)"
-Write-Host "  App opens: $($toss.events.app_open)"
-Write-Host "  Completions: $($toss.events.recommendation_completed)"
-Write-Host "  Shares: $($toss.events.share_clicked)"
+Write-Host "  Unique users: $(Metric $toss.uniqueUsers)"
+Write-Host "  Total events: $(Metric $toss.eventsTotal)"
+Write-Host "  App opens: $(Metric $toss.events.app_open)"
+Write-Host "  Completions: $(Metric $toss.events.recommendation_completed)"
+Write-Host "  Shares: $(Metric $toss.events.share_clicked)"
 Write-Host ""
 
 if ($kakao.uniqueUsers -lt 50) {

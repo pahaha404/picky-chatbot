@@ -14,6 +14,7 @@ Primary CTA: open the Kakao Picky channel and send one exact keyword.
 - 50 unique users in `/api/kakao/growth`
 - At least 30 recommendation completions
 - At least 5 feedback clicks
+- At least 3 share prompt clicks
 - No Kakao Open Builder response errors
 
 ## 90-Minute Launch Sequence
@@ -129,6 +130,10 @@ Caption:
 Picky한테 `점심추천` 보내면 메뉴 후보 3개를 골라줘요.
 첫 50명 테스트 중이라 피드백 받습니다.
 
+Variant CTA:
+
+추천 받은 뒤 `공유`를 누르면 친구한테 보낼 문구도 바로 나옵니다.
+
 ## Day 1 Metric Check
 
 Open:
@@ -151,15 +156,16 @@ Append a CSV snapshot:
 
 Record:
 
-| Time | uniqueUsers | kakao_start | kakao_recommendation_completed | completionRate | top campaign | Notes |
-| --- | ---: | ---: | ---: | ---: | --- | --- |
-| Start |  |  |  |  |  |  |
-| +90 min |  |  |  |  |  |  |
-| End of day |  |  |  |  |  |  |
+| Time | uniqueUsers | kakao_start | kakao_recommendation_completed | kakao_share_prompt | completionRate | top campaign | Notes |
+| --- | ---: | ---: | ---: | ---: | ---: | --- | --- |
+| Start |  |  |  |  |  |  |  |
+| +90 min |  |  |  |  |  |  |  |
+| End of day |  |  |  |  |  |  |  |
 
 ## Decision Rules
 
 - If `uniqueUsers` is below 10 after 90 minutes: DM 10 more direct testers before posting more public content.
 - If `completionRate` is below 55%: watch the Kakao chat flow and shorten the confusing question or choice labels.
 - If feedback clicks are 0 after 30 completions: ask testers directly to press `비슷한` or `별로` once.
+- If share prompts are 0 after 30 completions: make the next post ask users to press `공유` after receiving results.
 - If one campaign keyword gets at least 2x more starts than others: post 3 more variations around that same use case the next day.
