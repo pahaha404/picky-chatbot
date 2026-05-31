@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchQuestions, fetchRecommendations, sendFeedback, trackUsageEvent } from "./api";
 import { API_BASE_URL } from "./config";
 import { buildReferralShareUrl, getLaunchMetadata } from "./growth";
+import { getMenuImageUrl } from "./menuPresentation";
 import type { Answers, FeedbackAction, Question, Recommendation, UsageEventName } from "./types";
 import "./styles.css";
 
@@ -24,30 +25,8 @@ const optionLabelOverrides: Record<string, string> = {
   "술·야식 같이": "술/야식",
 };
 
-const productionApiOrigin = "https://picky-chatbot-production.up.railway.app";
-
 function displayOptionLabel(label: string) {
   return optionLabelOverrides[label] ?? label;
-}
-
-function resolveImageUrl(imageUrl?: string | null) {
-  if (!imageUrl) {
-    return null;
-  }
-
-  try {
-    const url = new URL(imageUrl, API_BASE_URL);
-    const apiUrl = new URL(API_BASE_URL);
-    const isLocalPreview = apiUrl.hostname === "localhost" || apiUrl.hostname === "127.0.0.1";
-
-    if (isLocalPreview && url.origin === productionApiOrigin) {
-      return `${apiUrl.origin}${url.pathname}`;
-    }
-
-    return url.toString();
-  } catch {
-    return imageUrl;
-  }
 }
 
 function createAnonymousUserId() {
@@ -267,13 +246,17 @@ export default function App() {
 
         <section className="recommendationList">
           {recommendations.map((item) => {
-            const imageUrl = resolveImageUrl(item.imageUrl);
+            const imageUrl = getMenuImageUrl(item, API_BASE_URL);
 
             return (
               <article className="menuCard" key={item.name}>
                 <div className="menuBody">
                   <div className="menuSummary">
-                    {imageUrl ? <img src={imageUrl} alt={item.name} className="menuImage" /> : null}
+                    {imageUrl ? (
+                      <span className="menuImageFrame">
+                        <img src={imageUrl} alt={item.name} className="menuImage" />
+                      </span>
+                    ) : null}
                     <div className="menuCopy">
                       <p className="category">{item.category}</p>
                       <h2>{item.name}</h2>

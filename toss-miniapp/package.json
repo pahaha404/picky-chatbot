@@ -7,7 +7,7 @@
     "dev": "granite dev",
     "build": "ait build",
     "deploy": "ait deploy",
-    "test:growth": "node --test --experimental-strip-types src/growth.test.ts",
+    "test:growth": "node --test --experimental-strip-types src/growth.test.ts src/menuPresentation.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
