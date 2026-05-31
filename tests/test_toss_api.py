@@ -203,9 +203,30 @@ class TossApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         output = response.json()["template"]["outputs"][0]
         card = output["basicCard"]
-        self.assertEqual(card["title"], "1. 오늘 누구랑 먹어?")
-        self.assertIn("/static/picky/picky-question", card["thumbnail"]["imageUrl"])
+        self.assertEqual(card["title"], "1. 누구랑 먹어?")
+        self.assertIn("/static/picky/picky-question-card.png", card["thumbnail"]["imageUrl"])
         self.assertEqual(len(response.json()["template"]["quickReplies"]), 5)
+
+    def test_kakao_quick_reply_labels_are_short_and_still_parse(self):
+        user_id = "kakao-short-label-user"
+        self.post_kakao_skill(user_id, "오늘 뭐 먹지")
+
+        response = self.post_kakao_skill(user_id, "혼밥")
+        card = response.json()["template"]["outputs"][0]["basicCard"]
+        self.assertEqual(card["title"], "2. 오늘 필요한 느낌은?")
+        quick_replies = response.json()["template"]["quickReplies"]
+        self.assertEqual(
+            [item["label"] for item in quick_replies],
+            ["든든", "가볍게", "국물", "매운맛", "새로운"],
+        )
+        self.assertEqual(
+            [item["messageText"] for item in quick_replies],
+            ["든든한 식사", "가볍고 깔끔", "속 따뜻한 국물", "스트레스 풀 매운맛", "새로운 메뉴"],
+        )
+
+        response = self.post_kakao_skill(user_id, "든든")
+        card = response.json()["template"]["outputs"][0]["basicCard"]
+        self.assertEqual(card["title"], "3. 맛 방향은?")
 
     def test_kakao_feedback_response_uses_picky_character_card(self):
         user_id = "kakao-feedback-card-user"
@@ -220,7 +241,7 @@ class TossApiTests(unittest.TestCase):
         output = response.json()["template"]["outputs"][0]
         card = output["basicCard"]
         self.assertEqual(card["title"], "아하, 김치찌개로 결정!")
-        self.assertIn("/static/picky/picky-aha", card["thumbnail"]["imageUrl"])
+        self.assertIn("/static/picky/picky-aha-card.png", card["thumbnail"]["imageUrl"])
 
     def test_kakao_usage_metrics_counts_funnel_events(self):
         user_id = "kakao-metrics-user"

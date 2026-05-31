@@ -710,9 +710,54 @@ setup_food_card_fields()
 # Kakao response builders
 # ---------------------------------------------------------
 PICKY_CHARACTER_IMAGE_PATHS = {
-    "question": "/static/picky/picky-question-existing.png",
-    "confused": "/static/picky/picky-confused-generated.png",
-    "aha": "/static/picky/picky-aha-generated.png",
+    "question": "/static/picky/picky-question-card.png",
+    "confused": "/static/picky/picky-confused-card.png",
+    "aha": "/static/picky/picky-aha-card.png",
+}
+
+KAKAO_QUICK_REPLY_LABELS = {
+    "혼밥": "혼밥",
+    "친구랑": "친구",
+    "데이트": "데이트",
+    "가족·동료": "가족/동료",
+    "야식": "야식",
+    "든든한 식사": "든든",
+    "가볍고 깔끔": "가볍게",
+    "속 따뜻한 국물": "국물",
+    "스트레스 풀 매운맛": "매운맛",
+    "새로운 메뉴": "새로운",
+    "매콤": "매콤",
+    "담백": "담백",
+    "고소·크리미": "고소",
+    "새콤·상큼": "상큼",
+    "진한 감칠맛": "감칠맛",
+    "고기": "고기",
+    "해산물": "해산물",
+    "채소": "채소",
+    "두부·계란": "두부/계란",
+    "밥·탄수화물": "밥",
+    "면": "면",
+    "구이·튀김": "구이/튀김",
+    "분식·간식": "분식",
+    "안 매움": "안매움",
+    "약간 매움": "약간",
+    "아주 매움": "매움",
+    "마라·불맛": "마라",
+    "빨리 먹기": "빠르게",
+    "앉아서 천천히": "천천히",
+    "나눠먹기": "나눠먹기",
+    "배달·포장": "배달/포장",
+    "술·야식 같이": "술/야식",
+}
+
+KAKAO_QUESTION_TITLES = {
+    "situation": "누구랑 먹어?",
+    "meal_goal": "오늘 필요한 느낌은?",
+    "taste_profile": "맛 방향은?",
+    "main_ingredient": "주재료는?",
+    "form": "음식 형태는?",
+    "spice_level": "매운 정도는?",
+    "eating_style": "먹는 방식은?",
 }
 
 
@@ -720,7 +765,7 @@ def make_quick_replies(labels: List[str]) -> List[Dict[str, str]]:
     return [
         {
             "action": "message",
-            "label": label,
+            "label": KAKAO_QUICK_REPLY_LABELS.get(label, label),
             "messageText": label,
         }
         for label in labels
@@ -805,9 +850,10 @@ def build_start_response() -> Dict[str, Any]:
 def build_question_response(step: int) -> Dict[str, Any]:
     question = QUESTIONS[step]
     options = list(question["options"].values())
+    question_title = KAKAO_QUESTION_TITLES.get(question["key"], question["text"])
 
     return kakao_card_response(
-        title=f"{step + 1}. {question['text']}",
+        title=f"{step + 1}. {question_title}",
         description="피키가 딱 맞는 메뉴를 찾는 중이야. 아래에서 하나만 골라줘.",
         mood="question",
         quick_replies=make_quick_replies(options),
@@ -1407,6 +1453,8 @@ def parse_answer(normalized: str, options: Dict[str, str]) -> Optional[str]:
 
     for value in options.values():
         if normalized == normalize_utterance(value):
+            return value
+        if normalized == normalize_utterance(KAKAO_QUICK_REPLY_LABELS.get(value, value)):
             return value
 
     return None
