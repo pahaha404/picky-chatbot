@@ -709,6 +709,13 @@ setup_food_card_fields()
 # ---------------------------------------------------------
 # Kakao response builders
 # ---------------------------------------------------------
+PICKY_CHARACTER_IMAGE_PATHS = {
+    "question": "/static/picky/picky-question-existing.png",
+    "confused": "/static/picky/picky-confused-generated.png",
+    "aha": "/static/picky/picky-aha-generated.png",
+}
+
+
 def make_quick_replies(labels: List[str]) -> List[Dict[str, str]]:
     return [
         {
@@ -718,6 +725,45 @@ def make_quick_replies(labels: List[str]) -> List[Dict[str, str]]:
         }
         for label in labels
     ]
+
+
+def picky_character_image_url(mood: str) -> str:
+    return make_public_url(PICKY_CHARACTER_IMAGE_PATHS.get(mood, PICKY_CHARACTER_IMAGE_PATHS["question"]))
+
+
+def kakao_card_response(
+    title: str,
+    description: str,
+    mood: str,
+    quick_replies: Optional[List[Dict[str, str]]] = None,
+    buttons: Optional[List[Dict[str, str]]] = None,
+) -> Dict[str, Any]:
+    card: Dict[str, Any] = {
+        "title": title,
+        "description": description,
+        "thumbnail": {
+            "imageUrl": picky_character_image_url(mood),
+        },
+    }
+
+    if buttons:
+        card["buttons"] = buttons
+
+    template: Dict[str, Any] = {
+        "outputs": [
+            {
+                "basicCard": card,
+            }
+        ]
+    }
+
+    if quick_replies:
+        template["quickReplies"] = quick_replies
+
+    return {
+        "version": "2.0",
+        "template": template,
+    }
 
 
 def kakao_text_response(text: str, quick_replies: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
@@ -741,9 +787,18 @@ def kakao_text_response(text: str, quick_replies: Optional[List[Dict[str, str]]]
 
 
 def build_start_response() -> Dict[str, Any]:
-    return kakao_text_response(
-        text="오늘 뭐 먹을지 정해볼게. 아래 버튼으로 시작해줘.",
+    return kakao_card_response(
+        title="Picky가 메뉴 골라줄게",
+        description="오늘 뭐 먹을지 모르겠다면 바로 시작해봐.",
+        mood="confused",
         quick_replies=make_quick_replies(["오늘 뭐 먹지"]),
+        buttons=[
+            {
+                "action": "message",
+                "label": "메뉴 추천 시작",
+                "messageText": "오늘 뭐 먹지",
+            }
+        ],
     )
 
 
@@ -751,8 +806,10 @@ def build_question_response(step: int) -> Dict[str, Any]:
     question = QUESTIONS[step]
     options = list(question["options"].values())
 
-    return kakao_text_response(
-        text=f"{step + 1}. {question['text']}",
+    return kakao_card_response(
+        title=f"{step + 1}. {question['text']}",
+        description="피키가 딱 맞는 메뉴를 찾는 중이야. 아래에서 하나만 골라줘.",
+        mood="question",
         quick_replies=make_quick_replies(options),
     )
 
@@ -1446,8 +1503,10 @@ def handle_pickly_flow(user_id: str, utterance: str) -> Dict[str, Any]:
                 "menuName": menu_name,
             },
         )
-        return kakao_text_response(
-            text=f"{menu_name} 좋다. 이걸로 가자.",
+        return kakao_card_response(
+            title=f"아하, {menu_name}로 결정!",
+            description="피키도 이 메뉴 괜찮다고 봐. 맛있게 먹고 다음에 또 골라보자.",
+            mood="aha",
             quick_replies=make_quick_replies(["다시 추천"]),
         )
 

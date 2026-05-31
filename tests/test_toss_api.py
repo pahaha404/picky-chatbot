@@ -197,6 +197,31 @@ class TossApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["version"], "2.0")
 
+    def test_kakao_question_response_uses_picky_character_card(self):
+        response = self.post_kakao_skill("kakao-card-user", "오늘 뭐 먹지")
+
+        self.assertEqual(response.status_code, 200)
+        output = response.json()["template"]["outputs"][0]
+        card = output["basicCard"]
+        self.assertEqual(card["title"], "1. 오늘 누구랑 먹어?")
+        self.assertIn("/static/picky/picky-question", card["thumbnail"]["imageUrl"])
+        self.assertEqual(len(response.json()["template"]["quickReplies"]), 5)
+
+    def test_kakao_feedback_response_uses_picky_character_card(self):
+        user_id = "kakao-feedback-card-user"
+        self.post_kakao_skill(user_id, "오늘 뭐 먹지")
+
+        for answer in KAKAO_ANSWER_SEQUENCE:
+            self.post_kakao_skill(user_id, answer)
+
+        response = self.post_kakao_skill(user_id, "김치찌개 선택")
+
+        self.assertEqual(response.status_code, 200)
+        output = response.json()["template"]["outputs"][0]
+        card = output["basicCard"]
+        self.assertEqual(card["title"], "아하, 김치찌개로 결정!")
+        self.assertIn("/static/picky/picky-aha", card["thumbnail"]["imageUrl"])
+
     def test_kakao_usage_metrics_counts_funnel_events(self):
         user_id = "kakao-metrics-user"
         response = self.post_kakao_skill(user_id, "오늘 뭐 먹지")
