@@ -13,18 +13,26 @@ This runbook tracks the remaining steps to release the Picky Toss miniapp and st
 - Backend: `https://picky-chatbot-production.up.railway.app`
 - Build artifact: `toss-miniapp/picky-menu.ait`
 - Artifact size at last local check: about 4.5 MB
-- Latest release check: 2026-05-31 21:17 KST
+- Latest release check: 2026-05-31 22:54 KST
+- Latest verified backend commit on `master`: `4d4af7f`
+- Latest Apps in Toss local build deploymentId: `019e7e42-17d4-7b55-80e7-89b23671dfea`
 - Latest local checks passed:
-  - `.\.venv\Scripts\python.exe -m unittest tests.test_toss_api -v` with 16 tests passing
+  - `.\.venv\Scripts\python.exe -m unittest tests.test_toss_api -v` with 18 tests passing
+  - `.\.venv\Scripts\python.exe -m unittest tests.test_growth_snapshot -v` with 3 tests passing
   - `npm run lint`
-  - `npm run test:growth`
-  - `npm run build`
+  - `npm run test:growth` with 6 tests passing
+  - `npm run build` created `picky-menu.ait`
 - Production API smoke checks verified:
   - `GET /api/toss/health`
   - `GET /api/toss/questions`
   - `POST /api/toss/recommend`
+  - `POST /kakao/skill` with `친구에게 공유`
   - `POST /api/toss/events`
   - `GET /api/toss/metrics`
+  - `GET /api/kakao/growth`
+- Current production growth snapshot:
+  - Kakao: 1 / 1,000 users after the production share-prompt verification event
+  - Toss: 0 tracked users after redeploy
 - Production CORS verified:
   - `https://picky-menu.apps.tossmini.com`
   - `https://picky-menu.private-apps.tossmini.com`
