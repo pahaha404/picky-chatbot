@@ -1,6 +1,6 @@
 :root {
-  color: #1f2933;
-  background: #f6f8fb;
+  color: #17202a;
+  background: #f4f7fb;
   font-family:
     Inter,
     system-ui,
@@ -17,7 +17,7 @@
 body {
   margin: 0;
   min-width: 320px;
-  background: #f6f8fb;
+  background: #f4f7fb;
 }
 
 button {
@@ -27,30 +27,95 @@ button {
 
 .screen {
   min-height: 100vh;
-  padding: 24px 18px 32px;
+  padding: 22px 18px 32px;
 }
 
-.topBar {
+.centerScreen {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 24px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.brandRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  color: #17202a;
+}
+
+.brandRow strong,
+.brandRow small {
+  display: block;
+  line-height: 1.2;
+}
+
+.brandRow strong {
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.brandRow small {
+  margin-top: 2px;
+  color: #657487;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.brandAvatar {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #e5ebf2;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.brandAvatar img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+.questionHero,
+.resultHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 18px;
+  border: 1px solid #e4edf8;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(25, 38, 52, 0.08);
+}
+
+.resultHero {
+  grid-template-columns: minmax(0, 1fr) 104px;
+  background: #fefdf9;
+  border-color: #efe5d2;
 }
 
 .eyebrow,
 .category {
   margin: 0 0 8px;
-  color: #3182f6;
+  color: #2475e8;
   font-size: 13px;
   font-weight: 700;
 }
 
 h1 {
   margin: 0;
-  font-size: 28px;
-  line-height: 1.22;
+  color: #101820;
+  font-size: 27px;
+  line-height: 1.2;
   letter-spacing: 0;
+  word-break: keep-all;
 }
 
 h2 {
@@ -61,25 +126,68 @@ h2 {
 }
 
 .bodyText,
+.heroText,
 .menuBody p {
   color: #536471;
   line-height: 1.5;
 }
 
-.progress {
-  min-width: 52px;
-  padding: 8px 10px;
-  border-radius: 999px;
-  background: #e8f2ff;
-  color: #1f6feb;
-  font-size: 13px;
+.heroText {
+  margin: 10px 0 0;
+  font-size: 14px;
   font-weight: 700;
+  word-break: keep-all;
+}
+
+.loadingMascot {
+  width: min(180px, 58vw);
+  max-height: 230px;
+  object-fit: contain;
+  margin: 10px 0 20px;
+}
+
+.questionMascot,
+.resultMascot {
+  display: block;
+  width: 100%;
+  height: 136px;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.resultMascot {
+  height: 122px;
+}
+
+.progressBlock {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 8px;
+  margin: 0 2px 16px;
+  color: #657487;
+  font-size: 13px;
+  font-weight: 800;
   text-align: center;
+}
+
+.progressTrack {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dde7f1;
+}
+
+.progressTrack div {
+  height: 100%;
+  border-radius: inherit;
+  background: #3182f6;
 }
 
 .optionGrid {
   display: grid;
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .optionButton,
@@ -89,15 +197,29 @@ h2 {
   border-radius: 8px;
   cursor: pointer;
   font-weight: 800;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background 120ms ease;
 }
 
 .optionButton {
   width: 100%;
-  padding: 16px;
+  min-width: 0;
+  padding: 14px 10px;
   background: #ffffff;
   color: #1f2933;
-  text-align: left;
+  text-align: center;
   box-shadow: 0 1px 8px rgba(15, 23, 42, 0.08);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.optionButton:active,
+.primaryButton:active,
+.ghostButton:active,
+.actionRow button:active {
+  transform: scale(0.98);
 }
 
 .primaryButton {
@@ -108,10 +230,17 @@ h2 {
 }
 
 .ghostButton {
-  min-height: 42px;
-  padding: 0 14px;
+  min-height: 44px;
+  padding: 0 16px;
   background: #ffffff;
   color: #3182f6;
+  border: 1px solid #d7e7fb;
+}
+
+.resultToolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 14px;
 }
 
 .resultActions {
@@ -138,7 +267,8 @@ h2 {
   overflow: hidden;
   border-radius: 8px;
   background: #ffffff;
-  box-shadow: 0 1px 10px rgba(15, 23, 42, 0.1);
+  border: 1px solid #e8edf3;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
 }
 
 .menuImage {
@@ -151,6 +281,10 @@ h2 {
 
 .menuBody {
   padding: 16px;
+}
+
+.menuBody p {
+  margin: 0;
 }
 
 .tagRow {
@@ -178,16 +312,38 @@ h2 {
 .actionRow button {
   min-height: 42px;
   border-radius: 8px;
-  background: #f6f8fb;
+  background: #f2f5f8;
   color: #26323f;
   font-size: 13px;
   font-weight: 800;
   cursor: pointer;
+  word-break: keep-all;
 }
 
 @media (min-width: 720px) {
   .screen {
     max-width: 720px;
     margin: 0 auto;
+  }
+}
+
+@media (max-width: 360px) {
+  .screen {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .questionHero,
+  .resultHero {
+    grid-template-columns: minmax(0, 1fr) 92px;
+    padding: 16px;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  .optionButton {
+    font-size: 14px;
   }
 }

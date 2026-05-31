@@ -5,7 +5,7 @@ export default defineConfig({
   brand: {
     displayName: "Picky 메뉴추천",
     primaryColor: "#3182F6",
-    icon: "",
+    icon: "/picky-sausage.png",
   },
   web: {
     host: "localhost",

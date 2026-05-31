@@ -1,9 +1,54 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { fetchQuestions, fetchRecommendations, sendFeedback, trackUsageEvent } from "./api";
+import { API_BASE_URL } from "./config";
 import { buildReferralShareUrl, getLaunchMetadata } from "./growth";
 import type { Answers, FeedbackAction, Question, Recommendation, UsageEventName } from "./types";
 import "./styles.css";
+
+const mascotImages = {
+  loading: "/picky-smile.png",
+  question: "/picky-question.png",
+  result: "/picky-sausage.png",
+  error: "/picky-unsure.png",
+};
+
+const optionLabelOverrides: Record<string, string> = {
+  "가볍고 깔끔": "깔끔하게",
+  "속 따뜻한 국물": "따뜻한 국물",
+  "스트레스 풀 매운맛": "매운맛",
+  "밥·탄수화물": "밥/탄수",
+  "구이·튀김": "구이/튀김",
+  "분식·간식": "분식",
+  "앉아서 천천히": "천천히",
+  "술·야식 같이": "술/야식",
+};
+
+const productionApiOrigin = "https://picky-chatbot-production.up.railway.app";
+
+function displayOptionLabel(label: string) {
+  return optionLabelOverrides[label] ?? label;
+}
+
+function resolveImageUrl(imageUrl?: string | null) {
+  if (!imageUrl) {
+    return null;
+  }
+
+  try {
+    const url = new URL(imageUrl, API_BASE_URL);
+    const apiUrl = new URL(API_BASE_URL);
+    const isLocalPreview = apiUrl.hostname === "localhost" || apiUrl.hostname === "127.0.0.1";
+
+    if (isLocalPreview && url.origin === productionApiOrigin) {
+      return `${apiUrl.origin}${url.pathname}`;
+    }
+
+    return url.toString();
+  } catch {
+    return imageUrl;
+  }
+}
 
 function createAnonymousUserId() {
   if (crypto.randomUUID) {
@@ -37,6 +82,20 @@ function buildShareText(items: Recommendation[], shareUrl: string) {
     .join(", ");
 
   return `오늘 PICKY 추천 메뉴: ${menuNames}\n토스에서 Picky 메뉴추천으로 골라봤어요.\n${shareUrl}`;
+}
+
+function BrandRow() {
+  return (
+    <div className="brandRow">
+      <span className="brandAvatar">
+        <img src={mascotImages.result} alt="" />
+      </span>
+      <span>
+        <strong>Picky</strong>
+        <small>토스에서 20초 메뉴 결정</small>
+      </span>
+    </div>
+  );
 }
 
 export default function App() {
@@ -157,17 +216,20 @@ export default function App() {
 
   if (status === "loading") {
     return (
-      <main className="screen">
-        <p className="eyebrow">Picky</p>
+      <main className="screen centerScreen">
+        <BrandRow />
+        <img src={mascotImages.loading} alt="메뉴를 고르는 피키" className="loadingMascot" />
         <h1>메뉴를 고르고 있어요</h1>
+        <p className="bodyText">피키가 오늘 분위기에 맞는 후보를 좁히는 중이에요.</p>
       </main>
     );
   }
 
   if (status === "error") {
     return (
-      <main className="screen">
-        <p className="eyebrow">Picky</p>
+      <main className="screen centerScreen">
+        <BrandRow />
+        <img src={mascotImages.error} alt="잠시 멈춘 피키" className="loadingMascot" />
         <h1>잠시 후 다시 시도해 주세요</h1>
         <p className="bodyText">{message}</p>
         <button className="primaryButton" onClick={() => window.location.reload()}>
@@ -180,11 +242,17 @@ export default function App() {
   if (recommendations.length) {
     return (
       <main className="screen resultsScreen">
-        <div className="topBar">
+        <section className="resultHero">
           <div>
+            <BrandRow />
             <p className="eyebrow">오늘의 추천</p>
-            <h1>이 중에서 골라볼까요?</h1>
+            <h1>피키가 골라왔어요</h1>
+            <p className="heroText">마음에 드는 메뉴를 누르면 다음 추천이 더 똑똑해져요.</p>
           </div>
+          <img src={mascotImages.result} alt="추천을 들고 온 피키" className="resultMascot" />
+        </section>
+
+        <div className="resultToolbar">
           <div className="resultActions">
             <button className="ghostButton" onClick={shareRecommendations}>
               공유
@@ -198,45 +266,61 @@ export default function App() {
         {message ? <p className="notice">{message}</p> : null}
 
         <section className="recommendationList">
-          {recommendations.map((item) => (
-            <article className="menuCard" key={item.name}>
-              {item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="menuImage" /> : null}
-              <div className="menuBody">
-                <p className="category">{item.category}</p>
-                <h2>{item.name}</h2>
-                <p>{item.shortDesc}</p>
-                <div className="tagRow">
-                  {item.tags.slice(0, 4).map((tag) => (
-                    <span key={tag}>{tag}</span>
-                  ))}
+          {recommendations.map((item) => {
+            const imageUrl = resolveImageUrl(item.imageUrl);
+
+            return (
+              <article className="menuCard" key={item.name}>
+                {imageUrl ? <img src={imageUrl} alt={item.name} className="menuImage" /> : null}
+                <div className="menuBody">
+                  <p className="category">{item.category}</p>
+                  <h2>{item.name}</h2>
+                  <p>{item.shortDesc}</p>
+                  <div className="tagRow">
+                    {item.tags.slice(0, 4).map((tag) => (
+                      <span key={tag}>{tag}</span>
+                    ))}
+                  </div>
+                  <div className="actionRow">
+                    <button onClick={() => handleFeedback(item.name, "choose")}>결정</button>
+                    <button onClick={() => handleFeedback(item.name, "similar")}>비슷한</button>
+                    <button onClick={() => handleFeedback(item.name, "dislike")}>별로</button>
+                  </div>
                 </div>
-                <div className="actionRow">
-                  <button onClick={() => handleFeedback(item.name, "choose")}>결정</button>
-                  <button onClick={() => handleFeedback(item.name, "similar")}>비슷한 메뉴</button>
-                  <button onClick={() => handleFeedback(item.name, "dislike")}>별로</button>
-                </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </section>
       </main>
     );
   }
 
   return (
-    <main className="screen">
-      <div className="topBar">
+    <main className="screen questionScreen">
+      <section className="questionHero">
         <div>
-          <p className="eyebrow">Picky 메뉴추천</p>
+          <BrandRow />
+          <p className="eyebrow">질문 {progressText}</p>
           <h1>{currentQuestion?.text ?? "오늘 뭐 먹지?"}</h1>
+          <p className="heroText">아래에서 가장 가까운 답 하나만 골라줘요.</p>
         </div>
-        {progressText ? <span className="progress">{progressText}</span> : null}
-      </div>
+        <img src={mascotImages.question} alt="질문하는 피키" className="questionMascot" />
+      </section>
+
+      {questions.length ? (
+        <div className="progressBlock" aria-label={`질문 ${step + 1} / ${questions.length}`}>
+          <span>{step + 1}</span>
+          <div className="progressTrack">
+            <div style={{ width: `${((step + 1) / questions.length) * 100}%` }} />
+          </div>
+          <span>{questions.length}</span>
+        </div>
+      ) : null}
 
       <section className="optionGrid">
         {currentQuestion?.options.map((option) => (
           <button key={option.value} className="optionButton" onClick={() => chooseOption(option.value)}>
-            {option.label}
+            {displayOptionLabel(option.label)}
           </button>
         ))}
       </section>
