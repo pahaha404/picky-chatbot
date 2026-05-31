@@ -19,11 +19,15 @@ Primary CTA: open the Kakao Picky channel and send one exact keyword.
 ## 90-Minute Launch Sequence
 
 1. Minute 0-10: Open `/api/kakao/growth` and record the starting numbers.
+   You can also save a CSV snapshot:
+   `.\.venv\Scripts\python.exe scripts\log_growth_snapshot.py --note "day1-start"`
 2. Minute 10-20: Publish the pinned build-in-public post.
 3. Minute 20-35: Send the friend/group test message to 10-20 people who can try it immediately.
 4. Minute 35-55: Publish the lunch or dinner Threads post, depending on the time of day.
 5. Minute 55-75: Reply to 10 relevant food-decision posts with the soft-reply templates below.
 6. Minute 75-90: Check `/api/kakao/growth`, then write down starts, completions, completion rate, and the best keyword.
+   Save another CSV snapshot:
+   `.\.venv\Scripts\python.exe scripts\log_growth_snapshot.py --note "day1-90min"`
 
 ## Pinned Post
 
@@ -131,6 +135,18 @@ Open:
 
 ```text
 https://picky-chatbot-production.up.railway.app/api/kakao/growth
+```
+
+Quick terminal check:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_growth_metrics.ps1
+```
+
+Append a CSV snapshot:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\log_growth_snapshot.py --note "day1-check"
 ```
 
 Record:

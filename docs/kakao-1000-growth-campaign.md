@@ -256,6 +256,12 @@ Every day:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_growth_metrics.ps1
 ```
 
+   To save the numbers to `docs/growth-metrics-log.csv`, run:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\log_growth_snapshot.py --note "daily-check"
+```
+
 5. Write down the best-performing keyword and repeat that angle the next day.
 
 Weekly:

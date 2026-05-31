@@ -1,0 +1,2 @@
+timestamp,note,kakao_unique_users,kakao_target_users,kakao_remaining_users,kakao_progress_percent,kakao_starts,kakao_completions,kakao_feedback_clicks,kakao_completion_rate,kakao_feedback_rate,kakao_campaign_starts,toss_unique_users,toss_events_total,toss_app_opens,toss_completions,toss_shares
+2026-05-31T21:34:43+09:00,codex-check,0,1000,1000,0.0,0,0,0,0.0,0.0,,1,2,1,1,0
