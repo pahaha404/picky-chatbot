@@ -225,6 +225,9 @@ Request review only after QR testing passes.
 ## First 1,000 Users Plan
 
 Track progress through `/api/toss/metrics`.
+The app also writes launch-source metadata on `app_open`.
+When a user opens a shared link, the event metadata includes `referralUserId`, `source=share`, and `medium=toss_miniapp`.
+The share button appends `ref`, `utm_source=share`, and `utm_medium=toss_miniapp` to the shared URL.
 
 Milestone 1: first 50 QR/test users
 
@@ -250,6 +253,7 @@ Milestone 3: first 1,000 users
   - completion rate
   - feedback rate
   - share rate
+  - referred app opens from shared links
   - repeat `app_open` after previous completion
 
 Do not add Toss Login, notifications, ads, or rewards before the QR/review path is accepted unless the review process requires them.

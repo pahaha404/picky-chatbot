@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { fetchQuestions, fetchRecommendations, sendFeedback, trackUsageEvent } from "./api";
+import { buildReferralShareUrl, getLaunchMetadata } from "./growth";
 import type { Answers, FeedbackAction, Question, Recommendation, UsageEventName } from "./types";
 import "./styles.css";
 
@@ -29,13 +30,13 @@ function trackEvent(userId: string, event: UsageEventName, metadata?: Record<str
   void trackUsageEvent(userId, event, metadata).catch(() => undefined);
 }
 
-function buildShareText(items: Recommendation[]) {
+function buildShareText(items: Recommendation[], shareUrl: string) {
   const menuNames = items
     .slice(0, 3)
     .map((item) => item.name)
     .join(", ");
 
-  return `오늘 PICKY 추천 메뉴: ${menuNames}\n토스에서 Picky 메뉴추천으로 골라봤어요.`;
+  return `오늘 PICKY 추천 메뉴: ${menuNames}\n토스에서 Picky 메뉴추천으로 골라봤어요.\n${shareUrl}`;
 }
 
 export default function App() {
@@ -46,6 +47,7 @@ export default function App() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "done" | "error">("loading");
   const [message, setMessage] = useState("");
+  const launchMetadata = useMemo(() => getLaunchMetadata(window.location.href, document.referrer), []);
 
   const currentQuestion = questions[step];
   const progressText = useMemo(() => {
@@ -57,7 +59,7 @@ export default function App() {
   }, [questions.length, recommendations.length, step]);
 
   useEffect(() => {
-    trackEvent(userId, "app_open");
+    trackEvent(userId, "app_open", launchMetadata);
 
     fetchQuestions()
       .then((items) => {
@@ -69,7 +71,7 @@ export default function App() {
         setStatus("error");
         setMessage(error.message);
       });
-  }, [userId]);
+  }, [userId, launchMetadata]);
 
   const chooseOption = async (value: string) => {
     if (!currentQuestion) {
@@ -128,13 +130,15 @@ export default function App() {
   };
 
   const shareRecommendations = async () => {
-    const text = buildShareText(recommendations);
+    const shareUrl = buildReferralShareUrl(window.location.href, userId);
+    const text = buildShareText(recommendations, shareUrl);
 
     try {
       if (navigator.share) {
         await navigator.share({
           title: "Picky 메뉴추천",
           text,
+          url: shareUrl,
         });
         setMessage("공유를 열었어요.");
       } else {
@@ -144,6 +148,7 @@ export default function App() {
 
       trackEvent(userId, "share_clicked", {
         menus: recommendations.map((item) => item.name),
+        shareUrl,
       });
     } catch {
       setMessage("공유 문구를 만들지 못했어요.");
