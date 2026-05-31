@@ -87,7 +87,9 @@ TOSS_ALLOWED_ORIGINS=https://picky-menu.apps.tossmini.com,https://picky-menu.pri
 
 1. `python -m unittest tests.test_toss_api -v` 실행
 2. `cd toss-miniapp && npm run build` 실행
-3. 생성된 `picky-menu.ait`를 Apps in Toss 콘솔에 업로드하거나 `npx ait deploy` 실행
+3. 생성된 `picky-menu.ait`를 Apps in Toss 콘솔에 업로드하거나 배포 API 키로 `npx ait deploy --api-key <콘솔_API_키>` 실행
 4. 토스앱에서 QR 테스트 완료
 5. 앱 내 기능 `메뉴추천` 등록
 6. QR 테스트 통과 후 심사 요청
+
+CLI 배포를 반복할 경우 `cd toss-miniapp && npx ait token add`로 콘솔 API 키를 등록한 뒤 `npm run deploy`를 사용할 수 있습니다.
