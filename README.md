@@ -34,6 +34,13 @@ SUPABASE_KEY=...
 PUBLIC_BASE_URL=...
 ```
 
+## Kakao Chatbot Operations
+
+카카오 오픈빌더 Skill URL은 Railway 백엔드의 `/kakao/skill`을 사용합니다.
+챗봇 시작, 질문 답변, 추천 완료, 피드백, 다시 추천 이벤트는 서버에서 자동으로 기록되고 `/api/kakao/metrics`에서 집계할 수 있습니다.
+Supabase를 쓰는 운영 환경에서는 `docs/kakao-supabase-events.sql`을 SQL Editor에서 실행해 `kakao_usage_events` 테이블을 만들어야 합니다.
+카카오 챗봇 1천 명 운영 체크리스트는 `docs/kakao-growth-runbook.md`를 기준으로 진행합니다.
+
 ## Feedback Weights
 
 피드백 데이터가 충분히 쌓이면 통계 가중치 파일을 생성할 수 있습니다.

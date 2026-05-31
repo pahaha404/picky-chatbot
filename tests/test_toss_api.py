@@ -16,12 +16,38 @@ VALID_ANSWERS = {
     "eating_style": "빨리 먹기",
 }
 
+KAKAO_ANSWER_SEQUENCE = [
+    "혼밥",
+    "든든한 식사",
+    "매콤",
+    "고기",
+    "밥",
+    "매콤",
+    "빨리 먹기",
+]
+
 
 class TossApiTests(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
+        main.USER_SESSIONS.clear()
         if hasattr(main, "TOSS_USAGE_EVENTS"):
             main.TOSS_USAGE_EVENTS.clear()
+        if hasattr(main, "KAKAO_USAGE_EVENTS"):
+            main.KAKAO_USAGE_EVENTS.clear()
+
+    def post_kakao_skill(self, user_id: str, utterance: str):
+        return self.client.post(
+            "/kakao/skill",
+            json={
+                "userRequest": {
+                    "utterance": utterance,
+                    "user": {
+                        "id": user_id,
+                    },
+                },
+            },
+        )
 
     def test_questions_returns_public_question_payload(self):
         response = self.client.get("/api/toss/questions")
@@ -166,20 +192,46 @@ class TossApiTests(unittest.TestCase):
         self.assertEqual(body["events"]["restart_clicked"], 1)
 
     def test_kakao_start_flow_still_works(self):
-        response = self.client.post(
-            "/kakao/skill",
-            json={
-                "userRequest": {
-                    "utterance": "오늘 뭐 먹지",
-                    "user": {
-                        "id": "kakao-regression-user",
-                    },
-                },
-            },
-        )
+        response = self.post_kakao_skill("kakao-regression-user", "오늘 뭐 먹지")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["version"], "2.0")
+
+    def test_kakao_usage_metrics_counts_funnel_events(self):
+        user_id = "kakao-metrics-user"
+        response = self.post_kakao_skill(user_id, "오늘 뭐 먹지")
+        self.assertEqual(response.status_code, 200)
+
+        for answer in KAKAO_ANSWER_SEQUENCE:
+            response = self.post_kakao_skill(user_id, answer)
+            self.assertEqual(response.status_code, 200)
+
+        response = self.post_kakao_skill(user_id, "김치찌개 선택")
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.get("/api/kakao/metrics")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["uniqueUsers"], 1)
+        self.assertEqual(body["eventsTotal"], 10)
+        self.assertEqual(body["events"]["kakao_start"], 1)
+        self.assertEqual(body["events"]["kakao_question_answered"], 7)
+        self.assertEqual(body["events"]["kakao_recommendation_completed"], 1)
+        self.assertEqual(body["events"]["kakao_feedback_clicked"], 1)
+
+    def test_kakao_usage_metrics_counts_restart(self):
+        user_id = "kakao-restart-user"
+        self.assertEqual(self.post_kakao_skill(user_id, "오늘 뭐 먹지").status_code, 200)
+        self.assertEqual(self.post_kakao_skill(user_id, "다시 추천").status_code, 200)
+
+        response = self.client.get("/api/kakao/metrics")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["uniqueUsers"], 1)
+        self.assertEqual(body["events"]["kakao_start"], 1)
+        self.assertEqual(body["events"]["kakao_restart"], 1)
 
 
 if __name__ == "__main__":

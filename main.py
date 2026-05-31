@@ -19,6 +19,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 USER_SESSIONS: Dict[str, Dict[str, Any]] = {}
 MENU_FEEDBACK: List[Dict[str, Any]] = []
 TOSS_USAGE_EVENTS: List[Dict[str, Any]] = []
+KAKAO_USAGE_EVENTS: List[Dict[str, Any]] = []
 TOSS_USAGE_EVENT_NAMES = {
     "app_open",
     "questions_loaded",
@@ -26,6 +27,13 @@ TOSS_USAGE_EVENT_NAMES = {
     "feedback_clicked",
     "share_clicked",
     "restart_clicked",
+}
+KAKAO_USAGE_EVENT_NAMES = {
+    "kakao_start",
+    "kakao_question_answered",
+    "kakao_recommendation_completed",
+    "kakao_feedback_clicked",
+    "kakao_restart",
 }
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -1023,6 +1031,63 @@ def summarize_toss_usage_events(records: List[Dict[str, Any]]) -> Dict[str, Any]
     }
 
 
+def get_kakao_usage_events() -> List[Dict[str, Any]]:
+    if supabase is None:
+        return KAKAO_USAGE_EVENTS
+
+    try:
+        result = (
+            supabase.table("kakao_usage_events")
+            .select("user_id, event_name, metadata")
+            .limit(5000)
+            .execute()
+        )
+        return result.data or []
+    except Exception as exc:
+        print(f"WARNING: Failed to fetch Kakao usage events from Supabase: {exc}")
+        return KAKAO_USAGE_EVENTS
+
+
+def save_kakao_usage_event(user_id: str, event_name: str, metadata: Dict[str, Any]) -> None:
+    if event_name not in KAKAO_USAGE_EVENT_NAMES:
+        return
+
+    payload = {
+        "user_id": normalize_usage_user_id(user_id),
+        "event_name": event_name,
+        "metadata": metadata,
+    }
+
+    KAKAO_USAGE_EVENTS.append(payload)
+
+    if supabase is None:
+        return
+
+    try:
+        supabase.table("kakao_usage_events").insert(payload).execute()
+    except Exception as exc:
+        print(f"WARNING: Failed to save Kakao usage event to Supabase: {exc}")
+
+
+def summarize_kakao_usage_events(records: List[Dict[str, Any]]) -> Dict[str, Any]:
+    event_counts = {event_name: 0 for event_name in sorted(KAKAO_USAGE_EVENT_NAMES)}
+    unique_user_ids = set()
+
+    for record in records:
+        event_name = record.get("event_name") or record.get("event")
+        if event_name in event_counts:
+            event_counts[event_name] += 1
+
+        user_id = normalize_usage_user_id(record.get("user_id") or record.get("userId"))
+        unique_user_ids.add(user_id)
+
+    return {
+        "uniqueUsers": len(unique_user_ids),
+        "eventsTotal": sum(event_counts.values()),
+        "events": event_counts,
+    }
+
+
 def answers_overlap_ratio(current_answers: Dict[str, Any], past_answers: Dict[str, Any]) -> float:
     compared = 0
     matched = 0
@@ -1340,9 +1405,13 @@ def toss_recommendation_payload(recommendations: List[Dict[str, Any]]) -> List[D
     ]
 
 
-def normalize_toss_user_id(value: Any) -> str:
+def normalize_usage_user_id(value: Any) -> str:
     user_id = str(value or "").strip()
     return user_id or "anonymous"
+
+
+def normalize_toss_user_id(value: Any) -> str:
+    return normalize_usage_user_id(value)
 
 
 def strip_action_suffix(utterance: str, suffixes: List[str]) -> str:
@@ -1369,6 +1438,14 @@ def handle_pickly_flow(user_id: str, utterance: str) -> Dict[str, Any]:
     if normalized.endswith("선택"):
         menu_name = strip_action_suffix(utterance, ["선택"])
         save_feedback(user_id, menu_name, "choose", answers)
+        save_kakao_usage_event(
+            user_id,
+            "kakao_feedback_clicked",
+            {
+                "action": "choose",
+                "menuName": menu_name,
+            },
+        )
         return kakao_text_response(
             text=f"{menu_name} 좋다. 이걸로 가자.",
             quick_replies=make_quick_replies(["다시 추천"]),
@@ -1377,11 +1454,27 @@ def handle_pickly_flow(user_id: str, utterance: str) -> Dict[str, Any]:
     if normalized.endswith("비슷한메뉴"):
         menu_name = strip_action_suffix(utterance, ["비슷한 메뉴", "비슷한메뉴"])
         save_feedback(user_id, menu_name, "similar", answers)
+        save_kakao_usage_event(
+            user_id,
+            "kakao_feedback_clicked",
+            {
+                "action": "similar",
+                "menuName": menu_name,
+            },
+        )
         return build_recommendation_response(recommend_similar_food(menu_name))
 
     if normalized.endswith("별로예요") or normalized.endswith("별로"):
         menu_name = strip_action_suffix(utterance, ["별로예요", "별로"])
         save_feedback(user_id, menu_name, "dislike", answers)
+        save_kakao_usage_event(
+            user_id,
+            "kakao_feedback_clicked",
+            {
+                "action": "dislike",
+                "menuName": menu_name,
+            },
+        )
 
         if answers:
             recommendations = recommend_food(answers, exclude_names=[menu_name])
@@ -1395,10 +1488,12 @@ def handle_pickly_flow(user_id: str, utterance: str) -> Dict[str, Any]:
         return build_recommendation_response(recommendations)
 
     if is_reset_message(normalized):
+        save_kakao_usage_event(user_id, "kakao_restart", {})
         reset_session(user_id)
         return build_question_response(0)
 
     if is_start_message(normalized):
+        save_kakao_usage_event(user_id, "kakao_start", {})
         reset_session(user_id)
         return build_question_response(0)
 
@@ -1422,6 +1517,15 @@ def handle_pickly_flow(user_id: str, utterance: str) -> Dict[str, Any]:
     answer_key = current_question["key"]
     session["answers"][answer_key] = selected_value
     session["step"] = step + 1
+    save_kakao_usage_event(
+        user_id,
+        "kakao_question_answered",
+        {
+            "step": step,
+            "questionKey": answer_key,
+            "answer": selected_value,
+        },
+    )
 
     if session["step"] < len(QUESTIONS):
         save_session(user_id, session)
@@ -1430,6 +1534,13 @@ def handle_pickly_flow(user_id: str, utterance: str) -> Dict[str, Any]:
     recommendations = recommend_food(session["answers"])
     session["recommendations"] = recommendations
     save_session(user_id, session)
+    save_kakao_usage_event(
+        user_id,
+        "kakao_recommendation_completed",
+        {
+            "recommendations": [item["name"] for item in recommendations],
+        },
+    )
 
     return build_recommendation_response(recommendations)
 
@@ -1595,6 +1706,11 @@ async def toss_usage_event(request: Request) -> JSONResponse:
 @app.get("/api/toss/metrics")
 def toss_usage_metrics() -> Dict[str, Any]:
     return summarize_toss_usage_events(get_toss_usage_events())
+
+
+@app.get("/api/kakao/metrics")
+def kakao_usage_metrics() -> Dict[str, Any]:
+    return summarize_kakao_usage_events(get_kakao_usage_events())
 
 
 @app.post("/kakao/skill")
