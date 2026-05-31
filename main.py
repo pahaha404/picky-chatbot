@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from supabase import Client, create_client
@@ -23,6 +24,29 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "https://picky-chatbot-production.up.railway.app").rstrip("/")
 LEARNED_MENU_WEIGHTS_PATH = os.getenv("LEARNED_MENU_WEIGHTS_PATH", "learned_menu_weights.json")
 FOOD_IMAGE_BASE_URL = os.getenv("FOOD_IMAGE_BASE_URL", "").rstrip("/")
+TOSS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "TOSS_ALLOWED_ORIGINS",
+        ",".join(
+            [
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "https://picky-menu.apps.tossmini.com",
+                "https://picky-menu.private-apps.tossmini.com",
+            ]
+        ),
+    ).split(",")
+    if origin.strip()
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=TOSS_ALLOWED_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 supabase: Optional[Client] = None
 
@@ -1203,6 +1227,61 @@ def parse_answer(normalized: str, options: Dict[str, str]) -> Optional[str]:
     return None
 
 
+def public_question_payload() -> List[Dict[str, Any]]:
+    return [
+        {
+            "key": question["key"],
+            "text": question["text"],
+            "options": [
+                {
+                    "value": value,
+                    "label": value,
+                }
+                for value in question["options"].values()
+            ],
+        }
+        for question in QUESTIONS
+    ]
+
+
+def validate_toss_answers(answers: Dict[str, Any]) -> Dict[str, str]:
+    if not isinstance(answers, dict):
+        raise ValueError("Answers must be an object.")
+
+    validated: Dict[str, str] = {}
+
+    for key in ANSWER_KEYS:
+        if key not in answers:
+            raise ValueError(f"Missing answer: {key}")
+
+        value = str(answers[key]).strip()
+        if value not in VALID_OPTION_VALUES_BY_KEY[key]:
+            raise ValueError(f"Invalid answer for {key}: {value}")
+
+        validated[key] = value
+
+    return validated
+
+
+def toss_recommendation_payload(recommendations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    return [
+        {
+            "name": item["name"],
+            "score": item.get("score", 0),
+            "shortDesc": item.get("short_desc", "지금 먹기 좋은 메뉴야."),
+            "imageUrl": item.get("image_url"),
+            "category": item.get("category"),
+            "tags": item.get("tags", []),
+        }
+        for item in recommendations
+    ]
+
+
+def normalize_toss_user_id(value: Any) -> str:
+    user_id = str(value or "").strip()
+    return user_id or "anonymous"
+
+
 def strip_action_suffix(utterance: str, suffixes: List[str]) -> str:
     text = utterance.strip()
 
@@ -1318,6 +1397,106 @@ def health_check() -> Dict[str, str]:
         "status": "ok",
         "message": "PICKY Kakao bot server is running",
     }
+
+
+@app.get("/api/toss/health")
+def toss_health_check() -> Dict[str, str]:
+    return {
+        "status": "ok",
+    }
+
+
+@app.get("/api/toss/questions")
+def toss_questions() -> Dict[str, Any]:
+    questions = public_question_payload()
+    return {
+        "total": len(questions),
+        "questions": questions,
+    }
+
+
+@app.post("/api/toss/recommend")
+async def toss_recommend(request: Request) -> JSONResponse:
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    try:
+        answers = validate_toss_answers(payload.get("answers", {}))
+    except ValueError as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+    user_id = normalize_toss_user_id(payload.get("userId"))
+    exclude_names = payload.get("excludeNames", [])
+    if not isinstance(exclude_names, list):
+        exclude_names = []
+
+    recommendations = recommend_food(
+        answers,
+        exclude_names=[str(name) for name in exclude_names],
+    )
+
+    save_session(
+        user_id,
+        {
+            "step": len(QUESTIONS),
+            "answers": answers,
+            "recommendations": recommendations,
+        },
+    )
+
+    return JSONResponse(
+        content={
+            "userId": user_id,
+            "recommendations": toss_recommendation_payload(recommendations),
+        }
+    )
+
+
+@app.post("/api/toss/feedback")
+async def toss_feedback(request: Request) -> JSONResponse:
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    try:
+        answers = validate_toss_answers(payload.get("answers", {}))
+    except ValueError as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+    user_id = normalize_toss_user_id(payload.get("userId"))
+    menu_name = str(payload.get("menuName", "")).strip()
+    action = str(payload.get("action", "")).strip()
+
+    if action not in VALID_FEEDBACK_ACTIONS:
+        return JSONResponse(
+            status_code=400,
+            content={"detail": f"Invalid feedback action: {action}"},
+        )
+
+    if not menu_name:
+        return JSONResponse(status_code=400, content={"detail": "Missing menuName"})
+
+    save_feedback(user_id, menu_name, action, answers)
+
+    response: Dict[str, Any] = {
+        "status": "ok",
+        "userId": user_id,
+        "action": action,
+        "menuName": menu_name,
+    }
+
+    if action == "similar":
+        response["recommendations"] = toss_recommendation_payload(recommend_similar_food(menu_name))
+
+    if action == "dislike":
+        response["recommendations"] = toss_recommendation_payload(
+            recommend_food(answers, exclude_names=[menu_name])
+        )
+
+    return JSONResponse(content=response)
 
 
 @app.post("/kakao/skill")
