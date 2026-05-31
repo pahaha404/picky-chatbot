@@ -12,14 +12,25 @@ This runbook tracks the remaining steps to release the Picky Toss miniapp and st
 - Display name: `Picky 메뉴추천`
 - Backend: `https://picky-chatbot-production.up.railway.app`
 - Build artifact: `toss-miniapp/picky-menu.ait`
-- Artifact size at last local check: about 4.2 MB
-- Production API smoke checks already verified:
+- Artifact size at last local check: about 4.5 MB
+- Latest release check: 2026-05-31 21:17 KST
+- Latest local checks passed:
+  - `.\.venv\Scripts\python.exe -m unittest tests.test_toss_api -v` with 16 tests passing
+  - `npm run lint`
+  - `npm run test:growth`
+  - `npm run build`
+- Production API smoke checks verified:
   - `GET /api/toss/health`
   - `GET /api/toss/questions`
   - `POST /api/toss/recommend`
-  - `POST /api/toss/feedback`
   - `POST /api/toss/events`
   - `GET /api/toss/metrics`
+- Production CORS verified:
+  - `https://picky-menu.apps.tossmini.com`
+  - `https://picky-menu.private-apps.tossmini.com`
+- Apps in Toss CLI deploy reached the API-key prompt:
+  - `npx ait deploy --location ./picky-menu.ait --scheme-only -m "..."`
+  - Result: blocked until a console deploy API key is entered or the `.ait` file is uploaded manually.
 
 ## Hosting Architecture
 
@@ -46,9 +57,9 @@ These require the app owner in external consoles.
 
 1. Apps in Toss console access.
 2. Apps in Toss deploy API key, or manual `.ait` upload in the console.
-3. App logo uploaded in Apps in Toss console, then copied as an image URL into `toss-miniapp/granite.config.ts` `brand.icon`.
-4. Supabase SQL Editor access to apply `docs/toss-supabase-events.sql` in production, otherwise usage metrics are only in memory after backend restarts.
-5. Toss app on a real phone for QR testing.
+3. Supabase SQL Editor access to apply `docs/toss-supabase-events.sql` in production, otherwise usage metrics can fall back to memory and reset after backend restarts.
+4. Toss app on a real phone for QR testing.
+5. Review request in the Apps in Toss console after QR testing passes.
 
 ## Official Release Requirements Checked
 
@@ -65,7 +76,7 @@ Sources:
 Relevant requirements for this app:
 
 - WebView miniapps use `create-ait-app` or `@apps-in-toss/web-framework`; this project uses the official WebView toolchain.
-- `appName`, `displayName`, and `icon` in `granite.config.ts` must match console app information. `icon` is still pending because the console-hosted logo URL is not known yet.
+- `appName`, `displayName`, and `icon` in `granite.config.ts` must match console app information. `icon` currently uses the bundled Picky mascot asset at `/picky-sausage.png`; replace it with a console-hosted logo URL only if the Apps in Toss console rejects local bundled assets.
 - Non-game miniapps should use the partner navigation frame; `webViewProps.type` is set to `partner`.
 - The app bundle must be below the Apps in Toss bundle size limit. The current `.ait` artifact is well below 100 MB.
 - QR testing in the Toss app must be completed at least once before review can be requested.
@@ -96,7 +107,7 @@ Use these values unless the app name changes in the console.
   - `피키`
 - Customer support email/contact: app owner must provide this.
 - Homepage URL: optional; use GitHub or a simple service intro page if required.
-- Logo: upload a 600 x 600 PNG in the console, then copy its URL into `brand.icon`.
+- Logo: use `toss-miniapp/public/picky-sausage.png` as the first console logo candidate.
 
 ## Pre-Upload Checklist
 
@@ -115,13 +126,13 @@ npm run build
 
 Expected output:
 
-- Backend: 10 tests pass.
+- Backend: 16 tests pass.
 - Frontend lint: no errors.
 - Build: `picky-menu.ait` is created.
 
 Before upload, check:
 
-- `toss-miniapp/granite.config.ts` `brand.icon` is not empty after the console logo URL is available.
+- `toss-miniapp/granite.config.ts` `brand.icon` is not empty.
 - `PUBLIC_BASE_URL` on Railway is `https://picky-chatbot-production.up.railway.app`.
 - `TOSS_ALLOWED_ORIGINS` includes both public and private Toss origins.
 - Production Supabase has the `toss_usage_events` table.
