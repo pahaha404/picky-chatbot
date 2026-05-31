@@ -264,23 +264,34 @@ h2 {
 }
 
 .menuCard {
-  overflow: hidden;
   border-radius: 8px;
   background: #ffffff;
   border: 1px solid #e8edf3;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
 }
 
+.menuBody {
+  padding: 16px;
+}
+
+.menuSummary {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+
 .menuImage {
   display: block;
-  width: 100%;
-  aspect-ratio: 16 / 9;
+  width: 96px;
+  height: 96px;
+  border-radius: 8px;
   object-fit: cover;
   background: #dbe4ee;
 }
 
-.menuBody {
-  padding: 16px;
+.menuCopy {
+  min-width: 0;
 }
 
 .menuBody p {
@@ -345,5 +356,19 @@ h2 {
 
   .optionButton {
     font-size: 14px;
+  }
+
+  .menuSummary {
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .menuImage {
+    width: 82px;
+    height: 82px;
+  }
+
+  h2 {
+    font-size: 20px;
   }
 }

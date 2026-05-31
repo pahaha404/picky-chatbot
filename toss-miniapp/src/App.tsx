@@ -271,11 +271,15 @@ export default function App() {
 
             return (
               <article className="menuCard" key={item.name}>
-                {imageUrl ? <img src={imageUrl} alt={item.name} className="menuImage" /> : null}
                 <div className="menuBody">
-                  <p className="category">{item.category}</p>
-                  <h2>{item.name}</h2>
-                  <p>{item.shortDesc}</p>
+                  <div className="menuSummary">
+                    {imageUrl ? <img src={imageUrl} alt={item.name} className="menuImage" /> : null}
+                    <div className="menuCopy">
+                      <p className="category">{item.category}</p>
+                      <h2>{item.name}</h2>
+                      <p>{item.shortDesc}</p>
+                    </div>
+                  </div>
                   <div className="tagRow">
                     {item.tags.slice(0, 4).map((tag) => (
                       <span key={tag}>{tag}</span>
