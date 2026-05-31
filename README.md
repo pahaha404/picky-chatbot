@@ -95,3 +95,5 @@ TOSS_ALLOWED_ORIGINS=https://picky-menu.apps.tossmini.com,https://picky-menu.pri
 6. QR 테스트 통과 후 심사 요청
 
 CLI 배포를 반복할 경우 `cd toss-miniapp && npx ait token add`로 콘솔 API 키를 등록한 뒤 `npm run deploy`를 사용할 수 있습니다.
+
+콘솔 업로드, QR 테스트, 심사 요청, 1천 명 지표 운영 절차는 `docs/toss-release-runbook.md`를 기준으로 진행합니다.
