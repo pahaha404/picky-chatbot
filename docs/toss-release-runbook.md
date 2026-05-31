@@ -21,6 +21,25 @@ This runbook tracks the remaining steps to release the Picky Toss miniapp and st
   - `POST /api/toss/events`
   - `GET /api/toss/metrics`
 
+## Hosting Architecture
+
+Apps in Toss hosts and runs the miniapp bundle, not this project's FastAPI backend.
+
+```text
+Toss app
+  -> Apps in Toss WebView bundle: toss-miniapp/picky-menu.ait
+  -> Railway backend: https://picky-chatbot-production.up.railway.app
+  -> Supabase Postgres: sessions, feedback, usage events
+```
+
+Current hosting split:
+
+- Toss console upload: only the frontend `.ait` bundle.
+- Railway: the existing FastAPI server used by both Kakao and Toss.
+- Supabase: persistent database storage.
+
+Do not create a second backend for the first release unless Railway becomes unreliable. The fastest launch path is to keep using Railway and verify CORS from the Toss private and public origins.
+
 ## Hard Blockers
 
 These require the app owner in external consoles.
@@ -28,7 +47,7 @@ These require the app owner in external consoles.
 1. Apps in Toss console access.
 2. Apps in Toss deploy API key, or manual `.ait` upload in the console.
 3. App logo uploaded in Apps in Toss console, then copied as an image URL into `toss-miniapp/granite.config.ts` `brand.icon`.
-4. Supabase SQL Editor access to apply `supabase_schema.sql` in production, otherwise usage metrics are only in memory after backend restarts.
+4. Supabase SQL Editor access to apply `docs/toss-supabase-events.sql` in production, otherwise usage metrics are only in memory after backend restarts.
 5. Toss app on a real phone for QR testing.
 
 ## Official Release Requirements Checked
@@ -106,6 +125,33 @@ Before upload, check:
 - `PUBLIC_BASE_URL` on Railway is `https://picky-chatbot-production.up.railway.app`.
 - `TOSS_ALLOWED_ORIGINS` includes both public and private Toss origins.
 - Production Supabase has the `toss_usage_events` table.
+
+## Production Supabase Setup
+
+The Toss miniapp works without this table, but usage metrics reset whenever the Railway process restarts. Apply the SQL before QR testing if you want reliable first-1,000-user tracking.
+
+1. Open Supabase dashboard.
+2. Open the production project used by Railway `SUPABASE_URL` and `SUPABASE_KEY`.
+3. Go to SQL Editor.
+4. Paste and run `docs/toss-supabase-events.sql`.
+5. Open `Table Editor` and confirm `toss_usage_events` exists.
+6. Run a public API smoke event:
+
+```powershell
+curl.exe -sS -X POST https://picky-chatbot-production.up.railway.app/api/toss/events -H "Content-Type: application/json" --data-binary "{\"userId\":\"supabase-check\",\"event\":\"app_open\"}"
+```
+
+7. Confirm the event appears in Supabase or in:
+
+```text
+https://picky-chatbot-production.up.railway.app/api/toss/metrics
+```
+
+Security notes:
+
+- RLS is enabled for `toss_usage_events`.
+- The SQL grants only `select` and `insert` to `anon`, because the backend only needs to write events and read them for metrics.
+- Do not put the Supabase `service_role` key in the Toss miniapp frontend.
 
 ## Upload Options
 

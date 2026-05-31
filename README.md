@@ -55,7 +55,13 @@ python scripts/upload_food_images.py
 
 토스 인앱 MVP는 `toss-miniapp/`에 있으며, 기존 FastAPI 백엔드의 `/api/toss/*` API를 사용합니다.
 앱 열림, 질문 로드, 추천 완료, 피드백, 공유, 다시 시작 이벤트는 `/api/toss/events`에 기록되고 `/api/toss/metrics`에서 집계할 수 있습니다.
-Supabase를 쓰는 운영 환경에서는 `supabase_schema.sql`을 다시 실행해 `toss_usage_events` 테이블을 만들어야 합니다.
+Supabase를 쓰는 운영 환경에서는 `docs/toss-supabase-events.sql`을 SQL Editor에서 실행해 `toss_usage_events` 테이블을 만들어야 합니다.
+
+배포 구조:
+
+```text
+Toss app -> toss-miniapp/picky-menu.ait -> Railway FastAPI backend -> Supabase
+```
 
 백엔드:
 

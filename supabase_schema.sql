@@ -106,6 +106,11 @@ on toss_usage_events (user_id);
 create index if not exists idx_toss_usage_events_event_created_at
 on toss_usage_events (event_name, created_at desc);
 
+grant select, insert on table toss_usage_events to anon;
+grant select, insert on table toss_usage_events to service_role;
+grant usage, select on sequence toss_usage_events_id_seq to anon;
+grant usage, select on sequence toss_usage_events_id_seq to service_role;
+
 alter table toss_usage_events enable row level security;
 
 drop policy if exists "Allow anon select toss usage events" on toss_usage_events;
