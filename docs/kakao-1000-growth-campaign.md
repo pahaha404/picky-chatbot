@@ -40,6 +40,22 @@ Default organic starts such as `오늘 뭐 먹지`, `메뉴추천`, and `추천`
 
 ## Threads Posts
 
+## Promo Image Assets
+
+Generated assets:
+
+| Asset | Format | Use |
+| --- | --- | --- |
+| `static/promo/kakao-threads-lunch.png` | 1080 x 1350 | Threads post image for `점심추천` |
+| `static/promo/kakao-story-solo.png` | 1080 x 1920 | Reels/Shorts/Story cover for `혼밥추천` |
+| `static/promo/kakao-build-log.png` | 1080 x 1350 | Build-in-public post image for `피키추천` |
+
+Regenerate them after changing Picky artwork or copy:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_kakao_promo_assets.ps1
+```
+
 ### 1. Lunch Decision
 
 오늘 점심 뭐 먹을지 정하는 데 10분 쓰는 사람들 많지 않나.
@@ -49,6 +65,8 @@ Default organic starts such as `오늘 뭐 먹지`, `메뉴추천`, and `추천`
 
 카톡에서 Picky 열고 `점심추천` 입력하면 바로 시작.
 
+Use image: `static/promo/kakao-threads-lunch.png`
+
 ### 2. Solo Meal
 
 혼밥 메뉴 고르는 게 은근 제일 어렵다.
@@ -57,6 +75,8 @@ Default organic starts such as `오늘 뭐 먹지`, `메뉴추천`, and `추천`
 Picky가 상황/맛/먹는 방식 물어보고 메뉴 추천해줌.
 
 카톡에서 `혼밥추천` 입력해봐.
+
+Use image: `static/promo/kakao-story-solo.png`
 
 ### 3. Dinner
 
@@ -92,6 +112,8 @@ Picky한테 `야식추천` 보내면 오늘 상황에 맞춰 3개 추천해줌.
 
 써보고 이상한 점 있으면 알려줘.
 카톡에서 `피키추천`.
+
+Use image: `static/promo/kakao-build-log.png`
 
 ### 7. Pain Point
 

@@ -42,6 +42,7 @@ Supabase를 쓰는 운영 환경에서는 `docs/kakao-supabase-events.sql`을 SQ
 카카오 챗봇 1천 명 운영 체크리스트는 `docs/kakao-growth-runbook.md`를 기준으로 진행합니다.
 Threads 게시글, 영상 스크립트, 캠페인 시작어, 일일 실행표는 `docs/kakao-1000-growth-campaign.md`에 정리되어 있습니다.
 캠페인별 시작 수와 1천 명 목표 진행률은 `/api/kakao/growth`에서 확인할 수 있습니다.
+홍보 이미지 산출물은 `static/promo/`에 있으며 `scripts/build_kakao_promo_assets.ps1`로 재생성할 수 있습니다.
 
 ## Feedback Weights
 
