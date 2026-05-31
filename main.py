@@ -35,6 +35,7 @@ KAKAO_USAGE_EVENT_NAMES = {
     "kakao_feedback_clicked",
     "kakao_restart",
 }
+KAKAO_GROWTH_TARGET_USERS = 1000
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -1191,6 +1192,37 @@ def summarize_kakao_usage_events(records: List[Dict[str, Any]]) -> Dict[str, Any
     }
 
 
+def summarize_kakao_growth(records: List[Dict[str, Any]]) -> Dict[str, Any]:
+    summary = summarize_kakao_usage_events(records)
+    campaign_starts: Dict[str, int] = {}
+
+    for record in records:
+        if record.get("event_name") != "kakao_start":
+            continue
+
+        metadata = record.get("metadata") or {}
+        if not isinstance(metadata, dict):
+            metadata = {}
+
+        campaign = str(metadata.get("campaign") or "organic").strip() or "organic"
+        campaign_starts[campaign] = campaign_starts.get(campaign, 0) + 1
+
+    starts = summary["events"].get("kakao_start", 0)
+    completions = summary["events"].get("kakao_recommendation_completed", 0)
+    feedback_clicks = summary["events"].get("kakao_feedback_clicked", 0)
+
+    return {
+        "targetUsers": KAKAO_GROWTH_TARGET_USERS,
+        "uniqueUsers": summary["uniqueUsers"],
+        "remainingUsers": max(KAKAO_GROWTH_TARGET_USERS - summary["uniqueUsers"], 0),
+        "progressPercent": round((summary["uniqueUsers"] / KAKAO_GROWTH_TARGET_USERS) * 100, 1),
+        "completionRate": round((completions / starts) * 100, 1) if starts else 0.0,
+        "feedbackRate": round((feedback_clicks / completions) * 100, 1) if completions else 0.0,
+        "campaignStarts": campaign_starts,
+        "events": summary["events"],
+    }
+
+
 def answers_overlap_ratio(current_answers: Dict[str, Any], past_answers: Dict[str, Any]) -> float:
     compared = 0
     matched = 0
@@ -1423,17 +1455,29 @@ def normalize_utterance(utterance: str) -> str:
     return "".join(ch for ch in utterance.strip().lower() if ch not in drop_chars)
 
 
+KAKAO_START_CAMPAIGNS = {
+    "오늘뭐먹지": "organic",
+    "뭐먹지": "organic",
+    "뭐먹을까": "organic",
+    "메뉴추천": "organic",
+    "음식추천": "organic",
+    "시작": "organic",
+    "추천": "organic",
+    "피키추천": "brand",
+    "점심추천": "threads_lunch",
+    "저녁추천": "threads_dinner",
+    "혼밥추천": "threads_solo",
+    "데이트메뉴": "threads_date",
+    "야식추천": "threads_late_night",
+}
+
+
+def kakao_start_campaign(normalized: str) -> Optional[str]:
+    return KAKAO_START_CAMPAIGNS.get(normalized)
+
+
 def is_start_message(normalized: str) -> bool:
-    start_keywords = {
-        "오늘뭐먹지",
-        "뭐먹지",
-        "뭐먹을까",
-        "메뉴추천",
-        "음식추천",
-        "시작",
-        "추천",
-    }
-    return normalized in start_keywords
+    return kakao_start_campaign(normalized) is not None
 
 
 def is_reset_message(normalized: str) -> bool:
@@ -1599,8 +1643,16 @@ def handle_pickly_flow(user_id: str, utterance: str) -> Dict[str, Any]:
         reset_session(user_id)
         return build_question_response(0)
 
-    if is_start_message(normalized):
-        save_kakao_usage_event(user_id, "kakao_start", {})
+    start_campaign = kakao_start_campaign(normalized)
+    if start_campaign is not None:
+        save_kakao_usage_event(
+            user_id,
+            "kakao_start",
+            {
+                "campaign": start_campaign,
+                "utterance": utterance,
+            },
+        )
         reset_session(user_id)
         return build_question_response(0)
 
@@ -1818,6 +1870,11 @@ def toss_usage_metrics() -> Dict[str, Any]:
 @app.get("/api/kakao/metrics")
 def kakao_usage_metrics() -> Dict[str, Any]:
     return summarize_kakao_usage_events(get_kakao_usage_events())
+
+
+@app.get("/api/kakao/growth")
+def kakao_growth_metrics() -> Dict[str, Any]:
+    return summarize_kakao_growth(get_kakao_usage_events())
 
 
 @app.post("/kakao/skill")

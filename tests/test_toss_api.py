@@ -279,6 +279,22 @@ class TossApiTests(unittest.TestCase):
         self.assertEqual(body["events"]["kakao_start"], 1)
         self.assertEqual(body["events"]["kakao_restart"], 1)
 
+    def test_kakao_growth_metrics_tracks_campaign_start_keywords(self):
+        self.assertEqual(self.post_kakao_skill("kakao-lunch-user", "점심추천").status_code, 200)
+        self.assertEqual(self.post_kakao_skill("kakao-dinner-user", "저녁추천").status_code, 200)
+        self.assertEqual(self.post_kakao_skill("kakao-organic-user", "오늘 뭐 먹지").status_code, 200)
+
+        response = self.client.get("/api/kakao/growth")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["targetUsers"], 1000)
+        self.assertEqual(body["uniqueUsers"], 3)
+        self.assertEqual(body["remainingUsers"], 997)
+        self.assertEqual(body["campaignStarts"]["threads_lunch"], 1)
+        self.assertEqual(body["campaignStarts"]["threads_dinner"], 1)
+        self.assertEqual(body["campaignStarts"]["organic"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()
