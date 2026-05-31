@@ -6,6 +6,12 @@ node_modules/
 toss-miniapp/node_modules/
 toss-miniapp/dist/
 toss-miniapp/*.ait
+toss-miniapp-e2e-*.png
+*-e2e.*.log
+.e2e-pids
+.e2e-jobs
+.backend-pid
+.frontend-pid
 __pycache__/
 .tools/
 *.pyc
