@@ -45,6 +45,7 @@ Threads 게시글, 영상 스크립트, 캠페인 시작어, 일일 실행표는
 캠페인별 시작 수와 1천 명 목표 진행률은 `/api/kakao/growth`에서 확인할 수 있습니다.
 터미널에서 한 번에 지표를 보려면 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_growth_metrics.ps1`를 실행합니다.
 날짜별 지표를 CSV로 남기려면 `.\.venv\Scripts\python.exe scripts\log_growth_snapshot.py --note "daily-check"`를 실행합니다.
+오늘 올릴 Threads 게시글, 댓글 10개, 영상 촬영안은 `.\.venv\Scripts\python.exe scripts\daily_growth_brief.py --note "daily-check"`로 `docs/kakao-today-growth-brief.md`에 생성합니다.
 홍보 이미지 산출물은 `static/promo/`에 있으며 `scripts/build_kakao_promo_assets.ps1`로 재생성할 수 있습니다.
 
 ## Feedback Weights

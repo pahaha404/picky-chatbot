@@ -35,6 +35,7 @@ Campaign execution:
 
 - Use `docs/kakao-day1-launch-pack.md` for the first 50-user push.
 - Use `docs/kakao-1000-growth-campaign.md` for Threads posts, short video scripts, CTA keywords, and the daily checklist.
+- Generate the daily execution brief with `.\.venv\Scripts\python.exe scripts\daily_growth_brief.py --note "daily-check"` and post from `docs/kakao-today-growth-brief.md`.
 - Use different CTA start messages such as `점심추천`, `저녁추천`, and `혼밥추천` so `/api/kakao/growth` can show which angle brings users.
 
 ## Weekly Check
@@ -43,6 +44,7 @@ Campaign execution:
 2. Open `/api/kakao/growth`.
    Or run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_growth_metrics.ps1`.
    To append a dated CSV snapshot, run `.\.venv\Scripts\python.exe scripts\log_growth_snapshot.py --note "weekly-check"`.
+   To generate the next posting brief, run `.\.venv\Scripts\python.exe scripts\daily_growth_brief.py --note "weekly-check"`.
 3. Check total users, recommendation completions, feedback clicks, share prompts, restarts, and `campaignStarts`.
 4. If many users start but do not complete seven questions, shorten or reorder questions.
 5. If many users complete but do not click feedback, improve card copy and button labels.
