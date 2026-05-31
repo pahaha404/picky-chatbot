@@ -242,12 +242,20 @@ Caption:
 
 ## Daily Execution Checklist
 
+For the first launch push, use `docs/kakao-day1-launch-pack.md` before this daily loop.
+
 Every day:
 
 1. Publish 1 Threads post using one campaign keyword.
 2. Reply to at least 10 relevant "오늘 뭐 먹지" or food-decision posts with a non-spammy suggestion.
 3. Record or repost 1 short clip every 2-3 days.
 4. Check `/api/kakao/growth`.
+   You can also run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_growth_metrics.ps1
+```
+
 5. Write down the best-performing keyword and repeat that angle the next day.
 
 Weekly:

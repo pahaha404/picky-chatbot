@@ -32,6 +32,7 @@ Operational targets:
 
 Campaign execution:
 
+- Use `docs/kakao-day1-launch-pack.md` for the first 50-user push.
 - Use `docs/kakao-1000-growth-campaign.md` for Threads posts, short video scripts, CTA keywords, and the daily checklist.
 - Use different CTA start messages such as `점심추천`, `저녁추천`, and `혼밥추천` so `/api/kakao/growth` can show which angle brings users.
 
@@ -39,6 +40,7 @@ Campaign execution:
 
 1. Open `/api/kakao/metrics`.
 2. Open `/api/kakao/growth`.
+   Or run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_growth_metrics.ps1`.
 3. Check total users, recommendation completions, feedback clicks, restarts, and `campaignStarts`.
 4. If many users start but do not complete seven questions, shorten or reorder questions.
 5. If many users complete but do not click feedback, improve card copy and button labels.
