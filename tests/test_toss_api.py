@@ -247,6 +247,53 @@ class TossApiTests(unittest.TestCase):
         card = response.json()["template"]["outputs"][0]["basicCard"]
         self.assertEqual(card["title"], "3. 음식 계열은?")
 
+    def test_kakao_adaptive_flow_persists_question_state_with_supabase(self):
+        class MemorySupabase:
+            def __init__(self):
+                self.sessions = {}
+
+            def table(self, name):
+                return MemoryTable(self, name)
+
+        class MemoryTable:
+            def __init__(self, client, name):
+                self.client = client
+                self.name = name
+                self.user_id = None
+                self.payload = None
+
+            def select(self, *_args):
+                return self
+
+            def eq(self, _column, value):
+                self.user_id = value
+                return self
+
+            def upsert(self, payload):
+                self.payload = payload
+                return self
+
+            def insert(self, _payload):
+                return self
+
+            def execute(self):
+                if self.name == "user_sessions" and self.payload is not None:
+                    self.client.sessions[self.payload["user_id"]] = dict(self.payload)
+                    return type("Result", (), {"data": [self.payload]})()
+                if self.name == "user_sessions" and self.user_id in self.client.sessions:
+                    return type("Result", (), {"data": [self.client.sessions[self.user_id]]})()
+                return type("Result", (), {"data": []})()
+
+        main.supabase = MemorySupabase()
+        user_id = "kakao-supabase-flow-user"
+
+        self.post_kakao_skill(user_id, "오늘 뭐 먹지")
+        self.post_kakao_skill(user_id, "밥")
+        response = self.post_kakao_skill(user_id, "덮밥")
+
+        card = response.json()["template"]["outputs"][0]["basicCard"]
+        self.assertEqual(card["title"], "3. 음식 계열은?")
+
     def test_kakao_feedback_response_uses_picky_character_card(self):
         user_id = "kakao-feedback-card-user"
         self.post_kakao_skill(user_id, "오늘 뭐 먹지")

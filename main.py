@@ -46,6 +46,7 @@ KAKAO_USAGE_EVENT_NAMES = {
 }
 KAKAO_GROWTH_TARGET_USERS = 1000
 USAGE_EVENT_TABLES = ("kakao_usage_events", "toss_usage_events")
+SESSION_FLOW_KEY = "_flow"
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -957,12 +958,20 @@ def get_session(user_id: str) -> Optional[Dict[str, Any]]:
         return None
 
     row = result.data[0]
+    answers = row.get("answers", {}) or {}
+    if not isinstance(answers, dict):
+        answers = {}
+    answers = dict(answers)
+    flow = answers.pop(SESSION_FLOW_KEY, {})
+    if not isinstance(flow, dict):
+        flow = {}
+
     return {
         "step": row.get("step", 0),
-        "answers": row.get("answers", {}),
+        "answers": answers,
         "recommendations": row.get("recommendations", []),
-        "asked_keys": row.get("asked_keys", []),
-        "current_question_key": row.get("current_question_key"),
+        "asked_keys": row.get("asked_keys", flow.get("asked_keys", [])),
+        "current_question_key": row.get("current_question_key", flow.get("current_question_key")),
     }
 
 
@@ -972,10 +981,16 @@ def save_session(user_id: str, session: Dict[str, Any]) -> None:
     if supabase is None:
         return
 
+    answers_for_storage = dict(session.get("answers", {}))
+    answers_for_storage[SESSION_FLOW_KEY] = {
+        "asked_keys": session.get("asked_keys", []),
+        "current_question_key": session.get("current_question_key"),
+    }
+
     payload = {
         "user_id": user_id,
         "step": session.get("step", 0),
-        "answers": session.get("answers", {}),
+        "answers": answers_for_storage,
         "recommendations": session.get("recommendations", []),
     }
 
