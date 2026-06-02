@@ -222,9 +222,19 @@ class TossApiTests(unittest.TestCase):
         self.assertEqual(card["title"], "1. 오늘 당기는 건?")
         self.assertIn("/static/picky/picky-question-card.png", card["thumbnail"]["imageUrl"])
         self.assertIn("1. 밥", card["description"])
+        self.assertIn("6. 기타", card["description"])
+        self.assertIn("7. 상관없음", card["description"])
         self.assertNotIn("치킨/피자", card["description"])
         self.assertNotIn(
             {"action": "message", "label": "치킨/피자", "messageText": "치킨피자"},
+            response.json()["template"]["quickReplies"],
+        )
+        self.assertIn(
+            {"action": "message", "label": "기타", "messageText": "기타"},
+            response.json()["template"]["quickReplies"],
+        )
+        self.assertIn(
+            {"action": "message", "label": "상관없음", "messageText": "상관없음"},
             response.json()["template"]["quickReplies"],
         )
 
@@ -237,15 +247,16 @@ class TossApiTests(unittest.TestCase):
         self.assertEqual(card["title"], "2. 매운 정도는?")
         self.assertIn("1. 안매움", card["description"])
         self.assertIn("5. 마라", card["description"])
+        self.assertIn("6. 상관없음", card["description"])
         self.assertNotIn("덮밥", card["description"])
         quick_replies = response.json()["template"]["quickReplies"]
         self.assertEqual(
             [item["label"] for item in quick_replies],
-            ["안매움", "매콤", "얼큰", "매움", "마라"],
+            ["안매움", "매콤", "얼큰", "매움", "마라", "상관없음"],
         )
         self.assertEqual(
             [item["messageText"] for item in quick_replies],
-            ["안매움", "매콤", "얼큰", "매움", "마라"],
+            ["안매움", "매콤", "얼큰", "매움", "마라", "상관없음"],
         )
 
         response = self.post_kakao_skill(user_id, "매콤")
@@ -271,6 +282,7 @@ class TossApiTests(unittest.TestCase):
         self.assertEqual(card["title"], "2. 매운 정도는?")
         self.assertNotIn("짜장", card["description"])
         self.assertNotIn("짬뽕", card["description"])
+        self.assertIn("상관없음", [item["messageText"] for item in response.json()["template"]["quickReplies"]])
         self.assertNotIn(
             {"action": "message", "label": "짜장", "messageText": "짜장"},
             response.json()["template"]["quickReplies"],
@@ -287,10 +299,22 @@ class TossApiTests(unittest.TestCase):
         self.assertEqual(card["title"], "2. 매운 정도는?")
         self.assertNotIn("떡볶이", card["description"])
         self.assertNotIn("순대", card["description"])
+        self.assertIn("상관없음", [item["messageText"] for item in response.json()["template"]["quickReplies"]])
         self.assertNotIn(
             {"action": "message", "label": "떡볶이", "messageText": "떡볶이"},
             response.json()["template"]["quickReplies"],
         )
+
+    def test_kakao_other_top_level_answer_uses_broad_preference_route(self):
+        user_id = "kakao-other-top-level-user"
+        self.post_kakao_skill(user_id, "오늘 뭐 먹지")
+
+        response = self.post_kakao_skill(user_id, "기타")
+
+        self.assertEqual(response.status_code, 200)
+        card = response.json()["template"]["outputs"][0]["basicCard"]
+        self.assertEqual(card["title"], "2. 매운 정도는?")
+        self.assertIn("상관없음", [item["messageText"] for item in response.json()["template"]["quickReplies"]])
 
     def test_kakao_direct_menu_input_finishes_current_survey(self):
         user_id = "kakao-direct-menu-user"

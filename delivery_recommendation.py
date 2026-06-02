@@ -9,89 +9,89 @@ DELIVERY_QUESTIONS: List[Dict[str, Any]] = [
     {
         "key": "craving",
         "text": "오늘 당기는 건?",
-        "options": ["밥", "면", "국물", "고기", "분식"],
+        "options": ["밥", "면", "국물", "고기", "분식", "기타", "상관없음"],
     },
     {
         "key": "cuisine",
         "text": "음식 계열은?",
-        "options": ["한식", "중식", "일식", "양식", "기타"],
+        "options": ["한식", "중식", "일식", "양식", "기타", "상관없음"],
     },
     {
         "key": "spice",
         "text": "매운 정도는?",
-        "options": ["안매움", "매콤", "얼큰", "매움", "마라"],
+        "options": ["안매움", "매콤", "얼큰", "매움", "마라", "상관없음"],
     },
     {
         "key": "soup",
         "text": "국물은?",
-        "options": ["없음", "찌개", "탕국밥", "면국물", "상관없음"],
+        "options": ["없음", "찌개", "탕국밥", "면국물", "기타", "상관없음"],
     },
     {
         "key": "flavor",
         "text": "맛 방향은?",
-        "options": ["매콤한", "짭짤한", "고소한", "새콤한", "담백한", "달콤한"],
+        "options": ["매콤한", "짭짤한", "고소한", "새콤한", "담백한", "달콤한", "기타", "상관없음"],
     },
     {
         "key": "main",
         "text": "메인 재료는?",
-        "options": ["돼지", "소", "닭", "해산물", "두부계란", "채소", "상관없음"],
+        "options": ["돼지", "소", "닭", "해산물", "두부계란", "채소", "기타", "상관없음"],
     },
     {
         "key": "meat_type",
         "text": "고기라면?",
-        "options": ["돼지", "소", "닭", "족발보쌈", "고기말고", "상관없음"],
+        "options": ["돼지", "소", "닭", "족발보쌈", "고기말고", "기타", "상관없음"],
         "condition": {"craving": "고기"},
     },
     {
         "key": "rice_style",
         "text": "밥 메뉴라면?",
-        "options": ["덮밥", "비빔밥", "김밥", "죽", "백반", "상관없음"],
+        "options": ["덮밥", "비빔밥", "김밥", "죽", "백반", "기타", "상관없음"],
         "condition": {"craving": "밥"},
     },
     {
         "key": "noodle_style",
         "text": "면이라면?",
-        "options": ["짜장", "짬뽕", "라멘우동", "국수냉면", "파스타", "아시안면", "상관없음"],
+        "options": ["짜장", "짬뽕", "라멘우동", "국수냉면", "파스타", "아시안면", "기타", "상관없음"],
         "condition": {"craving": "면"},
     },
     {
         "key": "soup_style",
         "text": "국물 종류는?",
-        "options": ["찌개", "해장국", "전골탕", "해물탕", "맑은국물", "상관없음"],
+        "options": ["찌개", "해장국", "전골탕", "해물탕", "맑은국물", "기타", "상관없음"],
         "condition": {"craving": "국물"},
     },
     {
         "key": "snack_style",
         "text": "분식이라면?",
-        "options": ["떡볶이", "김밥", "튀김만두", "순대", "토스트핫도그", "상관없음"],
+        "options": ["떡볶이", "김밥", "튀김만두", "순대", "토스트핫도그", "기타", "상관없음"],
         "condition": {"craving": "분식"},
     },
     {
         "key": "party_food",
         "text": "치킨피자라면?",
-        "options": ["후라이드", "양념", "피자", "버거", "족발보쌈", "상관없음"],
+        "options": ["후라이드", "양념", "피자", "버거", "족발보쌈", "기타", "상관없음"],
         "condition": {"craving": "치킨피자"},
     },
     {
         "key": "dessert_type",
         "text": "디저트라면?",
-        "options": ["커피", "빵케이크", "빙수", "아이스크림", "과일", "상관없음"],
+        "options": ["커피", "빵케이크", "빙수", "아이스크림", "과일", "기타", "상관없음"],
         "condition": {"craving": "디저트"},
     },
     {
         "key": "cook",
         "text": "조리 방법은?",
-        "options": ["구이", "튀김", "볶음", "찜조림", "차가운", "생"],
+        "options": ["구이", "튀김", "볶음", "찜조림", "차가운", "생", "기타", "상관없음"],
     },
     {
         "key": "situation",
         "text": "누구랑 먹어?",
-        "options": ["혼자", "둘이", "여럿", "술안주", "가족", "야식"],
+        "options": ["혼자", "둘이", "여럿", "술안주", "가족", "야식", "기타", "상관없음"],
     },
     {
         "key": "avoid",
         "text": "먹기 싫은 건?",
-        "options": ["매운거", "기름진거", "밀가루", "해산물", "없음"],
+        "options": ["매운거", "기름진거", "밀가루", "해산물", "기타", "없음"],
     },
 ]
 
@@ -122,8 +122,10 @@ BRANCH_QUESTION_ROUTES = {
     "국물": ("spice", "main", "situation", "avoid"),
     "고기": ("main", "cook", "situation", "spice"),
     "분식": ("spice", "cook", "situation", "avoid"),
-    "치킨피자": ("party_food", "situation", "spice", "avoid"),
-    "디저트": ("dessert_type", "situation", "avoid"),
+    "기타": ("spice", "soup", "main", "avoid"),
+    "상관없음": ("spice", "soup", "main", "avoid"),
+    "치킨피자": ("situation", "spice", "avoid"),
+    "디저트": ("flavor", "situation", "avoid"),
 }
 
 DIRECT_START_ANSWERS = {
@@ -276,11 +278,14 @@ def direct_delivery_start_answers(normalized_utterance: str) -> Optional[Dict[st
 
 
 def answer_match_strength(key: str, selected: str, profile: Dict[str, str]) -> float:
+    if selected == "상관없음":
+        return 0.0
+
     expected = profile.get(key)
     if expected == selected:
         return 1.0
 
-    if selected in {"상관없음", "기타"} and expected in {selected, "상관없음", "기타"}:
+    if selected == "기타" and expected == "기타":
         return 0.4
 
     if key == "meat_type" and profile.get("main") == selected:
@@ -335,6 +340,8 @@ def build_recommendation_reason(menu_item: Dict[str, Any], answers: Dict[str, st
 def avoid_penalty(menu_item: Dict[str, Any], selected: str) -> float:
     if selected == "없음":
         return 0.3
+    if selected == "기타":
+        return 0.0
 
     profile = menu_item["profile"]
     tags = set(menu_item.get("tags", []))

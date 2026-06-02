@@ -75,11 +75,11 @@ class DeliveryRecommendationTests(unittest.TestCase):
         )
         self.assertEqual(
             choose_next_question({"craving": "치킨피자"}, {"craving"})["key"],
-            "party_food",
+            "situation",
         )
         self.assertEqual(
             choose_next_question({"craving": "디저트"}, {"craving"})["key"],
-            "dessert_type",
+            "flavor",
         )
 
     def test_food_shape_branches_do_not_ask_menu_subtype_questions(self):
@@ -100,7 +100,31 @@ class DeliveryRecommendationTests(unittest.TestCase):
     def test_first_question_stays_on_core_food_shapes(self):
         first_question = next(question for question in DELIVERY_QUESTIONS if question["key"] == "craving")
 
-        self.assertEqual(first_question["options"], ["밥", "면", "국물", "고기", "분식"])
+        self.assertEqual(first_question["options"], ["밥", "면", "국물", "고기", "분식", "기타", "상관없음"])
+
+    def test_escape_options_are_available_where_needed(self):
+        question_by_key = {question["key"]: question for question in DELIVERY_QUESTIONS}
+
+        for key in ("craving", "cuisine", "soup", "flavor", "main", "cook", "situation"):
+            with self.subTest(key=key, option="기타"):
+                self.assertIn("기타", question_by_key[key]["options"])
+
+        for key in ("craving", "cuisine", "spice", "soup", "flavor", "main", "cook", "situation"):
+            with self.subTest(key=key, option="상관없음"):
+                self.assertIn("상관없음", question_by_key[key]["options"])
+
+        self.assertIn("기타", question_by_key["avoid"]["options"])
+        self.assertIn("없음", question_by_key["avoid"]["options"])
+
+    def test_other_and_anything_top_level_answers_use_broad_route(self):
+        self.assertEqual(
+            choose_next_question({"craving": "기타"}, {"craving"})["key"],
+            "spice",
+        )
+        self.assertEqual(
+            choose_next_question({"craving": "상관없음"}, {"craving"})["key"],
+            "spice",
+        )
 
     def test_snack_flow_does_not_ask_cuisine_after_snack_detail(self):
         next_question = choose_next_question(
@@ -173,6 +197,19 @@ class DeliveryRecommendationTests(unittest.TestCase):
         self.assertIn("reason", recommendations[0])
         self.assertIn("덮밥", recommendations[0]["reason"])
         self.assertIn("매콤", recommendations[0]["reason"])
+
+    def test_anything_answer_is_neutral_in_scoring(self):
+        base = recommend_delivery_food({"craving": "분식"}, limit=3)
+        neutral = recommend_delivery_food(
+            {"craving": "분식", "main": "상관없음"},
+            limit=3,
+        )
+
+        self.assertEqual(
+            [item["name"] for item in neutral],
+            [item["name"] for item in base],
+        )
+        self.assertNotIn("상관없음", neutral[0]["reason"])
 
 
 if __name__ == "__main__":
