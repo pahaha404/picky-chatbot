@@ -9,6 +9,11 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from supabase import Client, create_client
 
+from ai_recommendation import (
+    ai_recommendation_enabled,
+    normalize_ai_options,
+    request_ai_recommendation_turn,
+)
 from delivery_recommendation import (
     DELIVERY_MENUS,
     DELIVERY_QUESTIONS,
@@ -982,6 +987,8 @@ def get_session(user_id: str) -> Optional[Dict[str, Any]]:
         "recommendations": row.get("recommendations", []),
         "asked_keys": row.get("asked_keys", flow.get("asked_keys", [])),
         "current_question_key": row.get("current_question_key", flow.get("current_question_key")),
+        "ai_flow": bool(flow.get("ai_flow", False)),
+        "ai_history": flow.get("ai_history", []) if isinstance(flow.get("ai_history", []), list) else [],
     }
 
 
@@ -995,6 +1002,8 @@ def save_session(user_id: str, session: Dict[str, Any]) -> None:
     answers_for_storage[SESSION_FLOW_KEY] = {
         "asked_keys": session.get("asked_keys", []),
         "current_question_key": session.get("current_question_key"),
+        "ai_flow": bool(session.get("ai_flow", False)),
+        "ai_history": session.get("ai_history", []),
     }
 
     payload = {
@@ -1017,6 +1026,8 @@ def reset_session(user_id: str) -> Dict[str, Any]:
         "recommendations": [],
         "asked_keys": [],
         "current_question_key": None,
+        "ai_flow": False,
+        "ai_history": [],
     }
     save_session(user_id, session)
     return session
@@ -1554,6 +1565,116 @@ def direct_menu_recommendations(normalized: str) -> Optional[List[Dict[str, Any]
     return [primary, *similar[:2]]
 
 
+AI_FALLBACK_OPTIONS = ["가볍게", "든든하게", "매콤하게", "국물 있게", "상관없음"]
+MAX_AI_QUESTION_COUNT = 4
+
+
+def sanitize_ai_question_options(question: str, options: List[str]) -> List[str]:
+    cleaned_options = normalize_ai_options(question, options)
+    cleaned_options = [
+        option
+        for option in cleaned_options
+        if food_by_normalized_name(normalize_utterance(option)) is None
+    ]
+    cleaned_options = cleaned_options[:6]
+    if len(cleaned_options) < 2:
+        cleaned_options = AI_FALLBACK_OPTIONS
+    return cleaned_options
+
+
+def build_ai_question_response(step: int, question: str, options: List[str]) -> Dict[str, Any]:
+    option_lines = "\n\n".join(
+        f"{index}. {KAKAO_QUICK_REPLY_LABELS.get(option, option)}"
+        for index, option in enumerate(options, start=1)
+    )
+    return kakao_card_response(
+        title=f"{step}. {question}",
+        description=option_lines,
+        mood="question",
+        quick_replies=make_quick_replies(options),
+    )
+
+
+def ai_turn_summary(turn: Dict[str, Any]) -> str:
+    if turn.get("action") == "ask":
+        options = ", ".join(str(option) for option in turn.get("options", []))
+        return f"질문: {turn.get('question', '')} / 선택지: {options}"
+
+    names = [
+        str(item.get("name", ""))
+        for item in turn.get("recommendations", [])
+        if isinstance(item, dict) and item.get("name")
+    ]
+    return f"추천: {', '.join(names)}"
+
+
+def coerce_ai_recommendations(ai_recommendations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    foods_by_name = {food["name"]: food for food in FOOD_DB}
+    recommendations = []
+    seen_names = set()
+
+    for index, ai_item in enumerate(ai_recommendations):
+        if not isinstance(ai_item, dict):
+            continue
+
+        raw_name = str(ai_item.get("name", "")).strip()
+        source_food = foods_by_name.get(raw_name) or food_by_normalized_name(normalize_utterance(raw_name))
+        if source_food is None or source_food["name"] in seen_names:
+            continue
+
+        item = food_to_recommendation(source_food, 999.0 - index)
+        short_desc = str(ai_item.get("short_desc", "")).strip()
+        reason = str(ai_item.get("reason", "")).strip()
+        if short_desc:
+            item["short_desc"] = short_desc
+        if reason:
+            item["reason"] = reason
+        recommendations.append(item)
+        seen_names.add(source_food["name"])
+
+    if recommendations:
+        return recommendations[:3]
+    return recommend_food({})
+
+
+def handle_ai_kakao_turn(user_id: str, session: Dict[str, Any], utterance: str) -> Optional[Dict[str, Any]]:
+    history = list(session.get("ai_history", []))
+    history.append({"role": "user", "content": utterance})
+
+    try:
+        turn = request_ai_recommendation_turn(history, FOOD_DB)
+    except Exception as exc:
+        print(f"WARNING: AI recommendation flow failed: {exc}")
+        return None
+
+    session["ai_flow"] = True
+    session["answers"] = {}
+    session["asked_keys"] = []
+    session["current_question_key"] = None
+    session["ai_history"] = history + [{"role": "assistant", "content": ai_turn_summary(turn)}]
+
+    if turn.get("action") == "ask" and int(session.get("step", 0) or 0) < MAX_AI_QUESTION_COUNT:
+        question_text = str(turn.get("question", "")).strip() or "오늘 제일 중요한 기준은?"
+        options = sanitize_ai_question_options(question_text, turn.get("options", []))
+        session["step"] = int(session.get("step", 0) or 0) + 1
+        save_session(user_id, session)
+        return build_ai_question_response(session["step"], question_text, options)
+
+    recommendations = coerce_ai_recommendations(turn.get("recommendations", []))
+    session["recommendations"] = recommendations
+    session["current_question_key"] = None
+    save_session(user_id, session)
+    save_kakao_usage_event(
+        user_id,
+        "kakao_recommendation_completed",
+        {
+            "recommendations": [item["name"] for item in recommendations],
+            "source": "ai_nano",
+        },
+    )
+    return build_recommendation_response(recommendations)
+
+
 # ---------------------------------------------------------
 # Conversation handling
 # ---------------------------------------------------------
@@ -1762,6 +1883,11 @@ def handle_pickly_flow(user_id: str, utterance: str) -> Dict[str, Any]:
     if is_reset_message(normalized):
         save_kakao_usage_event(user_id, "kakao_restart", {})
         session = reset_session(user_id)
+        if ai_recommendation_enabled():
+            ai_response = handle_ai_kakao_turn(user_id, session, utterance)
+            if ai_response is not None:
+                return ai_response
+            session = reset_session(user_id)
         question = prepare_next_kakao_question(session)
         save_session(user_id, session)
         return build_question_response(0, question)
@@ -1781,6 +1907,11 @@ def handle_pickly_flow(user_id: str, utterance: str) -> Dict[str, Any]:
             },
         )
         session = reset_session(user_id)
+        if ai_recommendation_enabled():
+            ai_response = handle_ai_kakao_turn(user_id, session, utterance)
+            if ai_response is not None:
+                return ai_response
+            session = reset_session(user_id)
         question = prepare_next_kakao_question(session)
         save_session(user_id, session)
         return build_question_response(0, question)
@@ -1796,6 +1927,11 @@ def handle_pickly_flow(user_id: str, utterance: str) -> Dict[str, Any]:
                 "answers": direct_answers,
             },
         )
+        if ai_recommendation_enabled():
+            session = reset_session(user_id)
+            ai_response = handle_ai_kakao_turn(user_id, session, utterance)
+            if ai_response is not None:
+                return ai_response
         session = reset_session(user_id)
         session["answers"].update(direct_answers)
         session["asked_keys"] = [key for key in direct_answers if key in QUESTION_BY_KEY]
@@ -1825,6 +1961,26 @@ def handle_pickly_flow(user_id: str, utterance: str) -> Dict[str, Any]:
             session["current_question_key"] = None
             save_session(user_id, session)
         return build_recommendation_response(direct_recommendations)
+
+    if session is not None and session.get("ai_flow"):
+        if int(session.get("step", 0) or 0) > 0:
+            save_kakao_usage_event(
+                user_id,
+                "kakao_question_answered",
+                {
+                    "step": session.get("step", 0),
+                    "answer": utterance,
+                    "source": "ai_nano",
+                },
+            )
+        ai_response = handle_ai_kakao_turn(user_id, session, utterance)
+        if ai_response is not None:
+            return ai_response
+
+        session = reset_session(user_id)
+        question = prepare_next_kakao_question(session)
+        save_session(user_id, session)
+        return build_question_response(0, question)
 
     if session is None:
         return build_start_response()

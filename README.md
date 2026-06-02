@@ -49,6 +49,16 @@ Threads 게시글, 영상 스크립트, 캠페인 시작어, 일일 실행표는
 오늘 올릴 Threads 게시글, 댓글 10개, 영상 촬영안은 `.\.venv\Scripts\python.exe scripts\daily_growth_brief.py --note "daily-check"`로 `docs/kakao-today-growth-brief.md`에 생성합니다.
 홍보 이미지 산출물은 `static/promo/`에 있으며 `scripts/build_kakao_promo_assets.ps1`로 재생성할 수 있습니다.
 
+### AI Recommendation Experiment
+
+기본 카카오 플로우는 규칙 기반 추천입니다. 별도 AI 실험 브랜치에서는 아래 환경변수를 켜면 GPT nano가 질문 생성과 최종 추천을 맡습니다. AI 호출이 실패하거나 API 키가 없으면 기존 규칙 기반 첫 질문으로 돌아갑니다.
+
+```bash
+PICKY_AI_RECOMMENDATION_ENABLED=1
+PICKY_AI_MODEL=gpt-5-nano
+OPENAI_API_KEY=...
+```
+
 ## Feedback Weights
 
 피드백 데이터가 충분히 쌓이면 통계 가중치 파일을 생성할 수 있습니다.

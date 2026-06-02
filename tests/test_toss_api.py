@@ -38,6 +38,8 @@ class TossApiTests(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
         self.original_supabase = main.supabase
+        self.original_ai_enabled = main.ai_recommendation_enabled
+        self.original_ai_request = main.request_ai_recommendation_turn
         main.USER_SESSIONS.clear()
         if hasattr(main, "TOSS_USAGE_EVENTS"):
             main.TOSS_USAGE_EVENTS.clear()
@@ -46,6 +48,8 @@ class TossApiTests(unittest.TestCase):
 
     def tearDown(self):
         main.supabase = self.original_supabase
+        main.ai_recommendation_enabled = self.original_ai_enabled
+        main.request_ai_recommendation_turn = self.original_ai_request
 
     def post_kakao_skill(self, user_id: str, utterance: str):
         return self.client.post(
@@ -212,6 +216,87 @@ class TossApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["version"], "2.0")
+
+    def test_kakao_ai_flow_uses_ai_question_when_enabled(self):
+        main.ai_recommendation_enabled = lambda: True
+        main.request_ai_recommendation_turn = lambda _history, _menu_items: {
+            "action": "ask",
+            "question": "오늘 제일 중요한 기준은?",
+            "options": ["가볍게", "든든하게", "매콤하게", "상관없음"],
+        }
+
+        response = self.post_kakao_skill("kakao-ai-start-user", "오늘 뭐 먹지")
+
+        self.assertEqual(response.status_code, 200)
+        card = response.json()["template"]["outputs"][0]["basicCard"]
+        self.assertEqual(card["title"], "1. 오늘 제일 중요한 기준은?")
+        self.assertIn("4. 상관없음", card["description"])
+
+    def test_kakao_ai_flow_sanitizes_dislike_escape_options(self):
+        main.ai_recommendation_enabled = lambda: True
+        main.request_ai_recommendation_turn = lambda _history, _menu_items: {
+            "action": "ask",
+            "question": "먹기 싫은 건?",
+            "options": ["매운거", "상관없음", "기타", "없음"],
+        }
+
+        response = self.post_kakao_skill("kakao-ai-avoid-user", "오늘 뭐 먹지")
+
+        self.assertEqual(response.status_code, 200)
+        card = response.json()["template"]["outputs"][0]["basicCard"]
+        self.assertIn("1. 매운거", card["description"])
+        self.assertIn("2. 없음", card["description"])
+        self.assertNotIn("상관없음", card["description"])
+        self.assertNotIn("기타", card["description"])
+
+    def test_kakao_ai_flow_returns_ai_recommendation(self):
+        calls = []
+
+        def fake_ai_turn(history, _menu_items):
+            calls.append(history)
+            if len(calls) == 1:
+                return {
+                    "action": "ask",
+                    "question": "오늘 제일 중요한 기준은?",
+                    "options": ["가볍게", "든든하게", "매콤하게", "상관없음"],
+                }
+            return {
+                "action": "recommend",
+                "recommendations": [
+                    {
+                        "name": "제육덮밥",
+                        "short_desc": "AI가 고른 매콤한 밥 메뉴",
+                        "reason": "든든하고 매콤한 답변과 잘 맞아서",
+                    }
+                ],
+            }
+
+        main.ai_recommendation_enabled = lambda: True
+        main.request_ai_recommendation_turn = fake_ai_turn
+        user_id = "kakao-ai-recommend-user"
+
+        self.post_kakao_skill(user_id, "오늘 뭐 먹지")
+        response = self.post_kakao_skill(user_id, "든든하게")
+
+        self.assertEqual(response.status_code, 200)
+        carousel = response.json()["template"]["outputs"][0]["carousel"]
+        card = carousel["items"][0]
+        self.assertEqual(card["title"], "제육덮밥")
+        self.assertIn("AI가 고른 매콤한 밥 메뉴", card["description"])
+        self.assertIn("든든하고 매콤한 답변", card["description"])
+
+    def test_kakao_ai_flow_falls_back_to_rule_question_on_error(self):
+        def failing_ai_turn(_history, _menu_items):
+            raise RuntimeError("openai unavailable")
+
+        main.ai_recommendation_enabled = lambda: True
+        main.request_ai_recommendation_turn = failing_ai_turn
+
+        response = self.post_kakao_skill("kakao-ai-fallback-user", "오늘 뭐 먹지")
+
+        self.assertEqual(response.status_code, 200)
+        card = response.json()["template"]["outputs"][0]["basicCard"]
+        self.assertEqual(card["title"], "1. 오늘 당기는 건?")
 
     def test_kakao_question_response_uses_picky_character_card(self):
         response = self.post_kakao_skill("kakao-card-user", "오늘 뭐 먹지")
