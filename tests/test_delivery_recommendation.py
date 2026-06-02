@@ -67,11 +67,11 @@ class DeliveryRecommendationTests(unittest.TestCase):
     def test_next_question_uses_answer_context(self):
         self.assertEqual(
             choose_next_question({"craving": "밥"}, {"craving"})["key"],
-            "rice_style",
+            "spice",
         )
         self.assertEqual(
             choose_next_question({"craving": "고기"}, {"craving"})["key"],
-            "meat_type",
+            "main",
         )
         self.assertEqual(
             choose_next_question({"craving": "치킨피자"}, {"craving"})["key"],
@@ -81,6 +81,21 @@ class DeliveryRecommendationTests(unittest.TestCase):
             choose_next_question({"craving": "디저트"}, {"craving"})["key"],
             "dessert_type",
         )
+
+    def test_food_shape_branches_do_not_ask_menu_subtype_questions(self):
+        forbidden_next_keys = {
+            "밥": "rice_style",
+            "면": "noodle_style",
+            "국물": "soup_style",
+            "고기": "meat_type",
+            "분식": "snack_style",
+        }
+
+        for craving, forbidden_key in forbidden_next_keys.items():
+            with self.subTest(craving=craving):
+                next_question = choose_next_question({"craving": craving}, {"craving"})
+
+                self.assertNotEqual(next_question["key"], forbidden_key)
 
     def test_first_question_stays_on_core_food_shapes(self):
         first_question = next(question for question in DELIVERY_QUESTIONS if question["key"] == "craving")
@@ -96,18 +111,28 @@ class DeliveryRecommendationTests(unittest.TestCase):
         self.assertNotEqual(next_question["key"], "cuisine")
         self.assertEqual(next_question["key"], "spice")
 
-    def test_branch_routes_do_not_fall_back_to_common_cuisine_order(self):
+    def test_noodle_and_snack_branches_ask_preference_not_menu_names(self):
         self.assertEqual(
-            choose_next_question(
-                {"craving": "밥", "rice_style": "덮밥"},
-                {"craving", "rice_style"},
-            )["key"],
+            choose_next_question({"craving": "면"}, {"craving"})["key"],
             "spice",
         )
         self.assertEqual(
+            choose_next_question({"craving": "분식"}, {"craving"})["key"],
+            "spice",
+        )
+
+    def test_branch_routes_do_not_fall_back_to_common_cuisine_order(self):
+        self.assertEqual(
             choose_next_question(
-                {"craving": "고기", "meat_type": "닭"},
-                {"craving", "meat_type"},
+                {"craving": "밥", "spice": "매콤"},
+                {"craving", "spice"},
+            )["key"],
+            "main",
+        )
+        self.assertEqual(
+            choose_next_question(
+                {"craving": "고기", "main": "닭"},
+                {"craving", "main"},
             )["key"],
             "cook",
         )

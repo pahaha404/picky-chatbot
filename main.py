@@ -1535,6 +1535,25 @@ def recommend_similar_food(menu_name: str) -> List[Dict[str, Any]]:
     return [food_to_recommendation(food, score) for score, food in similar_foods[:3]]
 
 
+def food_by_normalized_name(normalized: str) -> Optional[Dict[str, Any]]:
+    for food in FOOD_DB:
+        if normalized == normalize_utterance(food["name"]):
+            return food
+    return None
+
+
+def direct_menu_recommendations(normalized: str) -> Optional[List[Dict[str, Any]]]:
+    target_food = food_by_normalized_name(normalized)
+    if target_food is None:
+        return None
+
+    primary = food_to_recommendation(target_food, 999.0)
+    primary["reason"] = f"{target_food['name']}를 직접 말해서 바로 골랐어."
+
+    similar = recommend_similar_food(target_food["name"])
+    return [primary, *similar[:2]]
+
+
 # ---------------------------------------------------------
 # Conversation handling
 # ---------------------------------------------------------
@@ -1789,6 +1808,23 @@ def handle_pickly_flow(user_id: str, utterance: str) -> Dict[str, Any]:
             save_session(user_id, session)
             return build_recommendation_response(recommendations)
         return build_question_response(session["step"], question)
+
+    direct_recommendations = direct_menu_recommendations(normalized)
+    if direct_recommendations is not None:
+        save_kakao_usage_event(
+            user_id,
+            "kakao_recommendation_completed",
+            {
+                "recommendations": [item["name"] for item in direct_recommendations],
+                "source": "direct_menu_name",
+                "utterance": utterance,
+            },
+        )
+        if session is not None:
+            session["recommendations"] = direct_recommendations
+            session["current_question_key"] = None
+            save_session(user_id, session)
+        return build_recommendation_response(direct_recommendations)
 
     if session is None:
         return build_start_response()

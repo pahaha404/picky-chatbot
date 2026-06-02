@@ -117,18 +117,18 @@ QUESTION_WEIGHTS = {
 }
 
 BRANCH_QUESTION_ROUTES = {
-    "밥": ("rice_style", "spice", "main", "avoid"),
-    "면": ("noodle_style", "spice", "soup", "avoid"),
-    "국물": ("soup_style", "spice", "main", "avoid"),
-    "고기": ("meat_type", "cook", "situation", "spice"),
-    "분식": ("snack_style", "spice", "situation", "avoid"),
+    "밥": ("spice", "main", "soup", "avoid"),
+    "면": ("spice", "soup", "flavor", "avoid"),
+    "국물": ("spice", "main", "situation", "avoid"),
+    "고기": ("main", "cook", "situation", "spice"),
+    "분식": ("spice", "cook", "situation", "avoid"),
     "치킨피자": ("party_food", "situation", "spice", "avoid"),
     "디저트": ("dessert_type", "situation", "avoid"),
 }
 
 DIRECT_START_ANSWERS = {
-    "치킨": {"craving": "고기", "meat_type": "닭"},
-    "치킨추천": {"craving": "고기", "meat_type": "닭"},
+    "치킨": {"craving": "고기", "main": "닭"},
+    "치킨추천": {"craving": "고기", "main": "닭"},
     "피자": {"craving": "치킨피자", "party_food": "피자"},
     "피자추천": {"craving": "치킨피자", "party_food": "피자"},
     "디저트": {"craving": "디저트"},

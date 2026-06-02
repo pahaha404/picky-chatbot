@@ -27,9 +27,9 @@ VALID_ANSWERS = {
 
 KAKAO_ANSWER_SEQUENCE = [
     "밥",
-    "덮밥",
     "매콤",
     "돼지",
+    "없음",
     "없음",
 ]
 
@@ -234,22 +234,23 @@ class TossApiTests(unittest.TestCase):
 
         response = self.post_kakao_skill(user_id, "밥")
         card = response.json()["template"]["outputs"][0]["basicCard"]
-        self.assertEqual(card["title"], "2. 밥 메뉴라면?")
-        self.assertIn("1. 덮밥", card["description"])
-        self.assertIn("6. 상관없음", card["description"])
+        self.assertEqual(card["title"], "2. 매운 정도는?")
+        self.assertIn("1. 안매움", card["description"])
+        self.assertIn("5. 마라", card["description"])
+        self.assertNotIn("덮밥", card["description"])
         quick_replies = response.json()["template"]["quickReplies"]
         self.assertEqual(
             [item["label"] for item in quick_replies],
-            ["덮밥", "비빔밥", "김밥", "죽", "백반", "상관없음"],
+            ["안매움", "매콤", "얼큰", "매움", "마라"],
         )
         self.assertEqual(
             [item["messageText"] for item in quick_replies],
-            ["덮밥", "비빔밥", "김밥", "죽", "백반", "상관없음"],
+            ["안매움", "매콤", "얼큰", "매움", "마라"],
         )
 
-        response = self.post_kakao_skill(user_id, "덮밥")
+        response = self.post_kakao_skill(user_id, "매콤")
         card = response.json()["template"]["outputs"][0]["basicCard"]
-        self.assertEqual(card["title"], "3. 매운 정도는?")
+        self.assertEqual(card["title"], "3. 메인 재료는?")
 
     def test_kakao_direct_chicken_request_uses_meat_branch(self):
         response = self.post_kakao_skill("kakao-direct-chicken-user", "치킨 추천")
@@ -258,6 +259,50 @@ class TossApiTests(unittest.TestCase):
         card = response.json()["template"]["outputs"][0]["basicCard"]
         self.assertEqual(card["title"], "3. 조리 방법은?")
         self.assertIn("튀김", [item["messageText"] for item in response.json()["template"]["quickReplies"]])
+
+    def test_kakao_noodle_branch_asks_preference_not_menu_names(self):
+        user_id = "kakao-noodle-preference-user"
+        self.post_kakao_skill(user_id, "오늘 뭐 먹지")
+
+        response = self.post_kakao_skill(user_id, "면")
+
+        self.assertEqual(response.status_code, 200)
+        card = response.json()["template"]["outputs"][0]["basicCard"]
+        self.assertEqual(card["title"], "2. 매운 정도는?")
+        self.assertNotIn("짜장", card["description"])
+        self.assertNotIn("짬뽕", card["description"])
+        self.assertNotIn(
+            {"action": "message", "label": "짜장", "messageText": "짜장"},
+            response.json()["template"]["quickReplies"],
+        )
+
+    def test_kakao_snack_branch_asks_preference_not_menu_names(self):
+        user_id = "kakao-snack-preference-user"
+        self.post_kakao_skill(user_id, "오늘 뭐 먹지")
+
+        response = self.post_kakao_skill(user_id, "분식")
+
+        self.assertEqual(response.status_code, 200)
+        card = response.json()["template"]["outputs"][0]["basicCard"]
+        self.assertEqual(card["title"], "2. 매운 정도는?")
+        self.assertNotIn("떡볶이", card["description"])
+        self.assertNotIn("순대", card["description"])
+        self.assertNotIn(
+            {"action": "message", "label": "떡볶이", "messageText": "떡볶이"},
+            response.json()["template"]["quickReplies"],
+        )
+
+    def test_kakao_direct_menu_input_finishes_current_survey(self):
+        user_id = "kakao-direct-menu-user"
+        self.post_kakao_skill(user_id, "오늘 뭐 먹지")
+        self.post_kakao_skill(user_id, "분식")
+
+        response = self.post_kakao_skill(user_id, "떡볶이")
+
+        self.assertEqual(response.status_code, 200)
+        carousel = response.json()["template"]["outputs"][0]["carousel"]
+        self.assertEqual(carousel["items"][0]["title"], "떡볶이")
+        self.assertIn("이유:", carousel["items"][0]["description"])
 
     def test_kakao_adaptive_flow_persists_question_state_with_supabase(self):
         class MemorySupabase:
@@ -301,10 +346,10 @@ class TossApiTests(unittest.TestCase):
 
         self.post_kakao_skill(user_id, "오늘 뭐 먹지")
         self.post_kakao_skill(user_id, "밥")
-        response = self.post_kakao_skill(user_id, "덮밥")
+        response = self.post_kakao_skill(user_id, "매콤")
 
         card = response.json()["template"]["outputs"][0]["basicCard"]
-        self.assertEqual(card["title"], "3. 매운 정도는?")
+        self.assertEqual(card["title"], "3. 메인 재료는?")
 
     def test_kakao_feedback_response_uses_picky_character_card(self):
         user_id = "kakao-feedback-card-user"
