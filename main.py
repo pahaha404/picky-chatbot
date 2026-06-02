@@ -9,6 +9,14 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from supabase import Client, create_client
 
+from delivery_recommendation import (
+    DELIVERY_MENUS,
+    DELIVERY_QUESTIONS,
+    QUESTION_BY_KEY as DELIVERY_QUESTION_BY_KEY,
+    choose_next_question,
+    recommend_delivery_food,
+)
+
 
 load_dotenv()
 load_dotenv(".env.local", override=False)
@@ -95,99 +103,12 @@ LEARNED_MENU_WEIGHTS = load_learned_menu_weights()
 # ---------------------------------------------------------
 # Question flow
 # ---------------------------------------------------------
-QUESTIONS = [
-    {
-        "key": "situation",
-        "text": "오늘 누구랑 먹어?",
-        "options": {
-            "1": "혼밥",
-            "2": "친구랑",
-            "3": "데이트",
-            "4": "가족·동료",
-            "5": "야식",
-        },
-    },
-    {
-        "key": "meal_goal",
-        "text": "오늘 음식이 해줬으면 하는 역할은?",
-        "options": {
-            "1": "든든한 식사",
-            "2": "가볍고 깔끔",
-            "3": "속 따뜻한 국물",
-            "4": "스트레스 풀 매운맛",
-            "5": "새로운 메뉴",
-        },
-    },
-    {
-        "key": "taste_profile",
-        "text": "맛의 방향은?",
-        "options": {
-            "1": "매콤",
-            "2": "담백",
-            "3": "고소·크리미",
-            "4": "새콤·상큼",
-            "5": "진한 감칠맛",
-        },
-    },
-    {
-        "key": "main_ingredient",
-        "text": "주인공 재료는?",
-        "options": {
-            "1": "고기",
-            "2": "해산물",
-            "3": "채소",
-            "4": "두부·계란",
-            "5": "밥·탄수화물",
-        },
-    },
-    {
-        "key": "form",
-        "text": "음식 형태는?",
-        "options": {
-            "1": "밥",
-            "2": "면",
-            "3": "국물",
-            "4": "구이·튀김",
-            "5": "분식·간식",
-        },
-    },
-    {
-        "key": "spice_level",
-        "text": "매운 정도는?",
-        "options": {
-            "1": "안 매움",
-            "2": "약간 매움",
-            "3": "매콤",
-            "4": "아주 매움",
-            "5": "마라·불맛",
-        },
-    },
-    {
-        "key": "eating_style",
-        "text": "어떻게 먹을 예정이야?",
-        "options": {
-            "1": "빨리 먹기",
-            "2": "앉아서 천천히",
-            "3": "나눠먹기",
-            "4": "배달·포장",
-            "5": "술·야식 같이",
-        },
-    },
-]
-
-QUESTION_WEIGHTS = {
-    "situation": 2.4,
-    "meal_goal": 3.2,
-    "taste_profile": 2.9,
-    "main_ingredient": 2.1,
-    "form": 2.4,
-    "spice_level": 2.1,
-    "eating_style": 1.8,
-}
-
+QUESTIONS = DELIVERY_QUESTIONS
+QUESTION_BY_KEY = DELIVERY_QUESTION_BY_KEY
+QUESTION_WEIGHTS = {}
 ANSWER_KEYS = [question["key"] for question in QUESTIONS]
 VALID_OPTION_VALUES_BY_KEY = {
-    question["key"]: set(question["options"].values())
+    question["key"]: set(question["options"])
     for question in QUESTIONS
 }
 VALID_FEEDBACK_ACTIONS = {"dislike", "choose", "similar"}
@@ -663,6 +584,10 @@ FOOD_DB = [
 ]
 
 
+# Use the expanded delivery catalog as the runtime recommendation corpus.
+FOOD_DB = DELIVERY_MENUS
+
+
 # ---------------------------------------------------------
 # Food metadata helpers
 # ---------------------------------------------------------
@@ -685,12 +610,20 @@ def make_public_url(path_or_url: Optional[str]) -> str:
 def collect_food_tags(food: Dict[str, Any]) -> List[str]:
     tags: List[str] = []
 
+    profile = food.get("profile")
+    if isinstance(profile, dict):
+        tags.extend(str(value) for value in profile.values() if value)
+
     for key in ANSWER_KEYS:
         value = food.get(key, [])
         if isinstance(value, list):
             tags.extend(value)
         elif value:
             tags.append(str(value))
+
+    existing_tags = food.get("tags", [])
+    if isinstance(existing_tags, list):
+        tags.extend(str(value) for value in existing_tags if value)
 
     category = food.get("category")
     if category:
@@ -752,6 +685,18 @@ KAKAO_QUICK_REPLY_LABELS = {
     "배달·포장": "배달/포장",
     "술·야식 같이": "술/야식",
     "친구에게 공유": "공유",
+    "치킨피자": "치킨/피자",
+    "상관없음": "상관없음",
+    "두부계란": "두부/계란",
+    "족발보쌈": "족발/보쌈",
+    "고기말고": "고기X",
+    "라멘우동": "라멘/우동",
+    "국수냉면": "국수/냉면",
+    "아시안면": "아시안",
+    "튀김만두": "튀김/만두",
+    "토스트핫도그": "토스트",
+    "빵케이크": "빵/케이크",
+    "아이스크림": "아이스크림",
 }
 
 KAKAO_QUESTION_TITLES = {
@@ -762,7 +707,68 @@ KAKAO_QUESTION_TITLES = {
     "form": "음식 형태는?",
     "spice_level": "매운 정도는?",
     "eating_style": "먹는 방식은?",
+    "craving": "오늘 당기는 건?",
+    "cuisine": "음식 계열은?",
+    "spice": "매운 정도는?",
+    "soup": "국물은?",
+    "flavor": "맛 방향은?",
+    "main": "메인 재료는?",
+    "meat_type": "고기라면?",
+    "rice_style": "밥 메뉴라면?",
+    "noodle_style": "면이라면?",
+    "soup_style": "국물 종류는?",
+    "snack_style": "분식이라면?",
+    "party_food": "치킨피자라면?",
+    "dessert_type": "디저트라면?",
+    "cook": "조리 방법은?",
+    "situation": "누구랑 먹어?",
+    "avoid": "먹기 싫은 건?",
 }
+
+
+def question_options(question: Dict[str, Any]) -> List[str]:
+    options = question.get("options", [])
+    if isinstance(options, dict):
+        return list(options.values())
+    return [str(option) for option in options]
+
+
+def question_for_key(question_key: str) -> Dict[str, Any]:
+    return QUESTION_BY_KEY[question_key]
+
+
+def session_asked_keys(session: Dict[str, Any]) -> List[str]:
+    asked_keys = session.get("asked_keys", [])
+    if isinstance(asked_keys, list):
+        return [str(key) for key in asked_keys if key in QUESTION_BY_KEY]
+    return []
+
+
+def select_next_kakao_question(session: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    asked_keys = session_asked_keys(session)
+    current_key = session.get("current_question_key")
+    if current_key in QUESTION_BY_KEY and current_key not in session.get("answers", {}):
+        return question_for_key(current_key)
+
+    if not asked_keys:
+        return QUESTIONS[0]
+
+    return choose_next_question(session.get("answers", {}), set(asked_keys))
+
+
+def prepare_next_kakao_question(session: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    question = select_next_kakao_question(session)
+    if question is None:
+        session["current_question_key"] = None
+        return None
+
+    session["current_question_key"] = question["key"]
+    return question
+
+
+def should_finish_kakao_recommendation(session: Dict[str, Any]) -> bool:
+    asked_count = len(session_asked_keys(session))
+    return asked_count >= 5
 
 
 def make_quick_replies(labels: List[str]) -> List[Dict[str, str]]:
@@ -851,9 +857,9 @@ def build_start_response() -> Dict[str, Any]:
     )
 
 
-def build_question_response(step: int) -> Dict[str, Any]:
-    question = QUESTIONS[step]
-    options = list(question["options"].values())
+def build_question_response(step: int, question: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    question = question or QUESTIONS[step]
+    options = question_options(question)
     question_title = KAKAO_QUESTION_TITLES.get(question["key"], question["text"])
 
     return kakao_card_response(
@@ -955,6 +961,8 @@ def get_session(user_id: str) -> Optional[Dict[str, Any]]:
         "step": row.get("step", 0),
         "answers": row.get("answers", {}),
         "recommendations": row.get("recommendations", []),
+        "asked_keys": row.get("asked_keys", []),
+        "current_question_key": row.get("current_question_key"),
     }
 
 
@@ -982,6 +990,8 @@ def reset_session(user_id: str) -> Dict[str, Any]:
         "step": 0,
         "answers": {},
         "recommendations": [],
+        "asked_keys": [],
+        "current_question_key": None,
     }
     save_session(user_id, session)
     return session
@@ -1462,22 +1472,19 @@ def food_to_recommendation(food: Dict[str, Any], score: float = 0.0) -> Dict[str
 
 
 def recommend_food(answers: Dict[str, Any], exclude_names: Optional[List[str]] = None) -> List[Dict[str, Any]]:
-    exclude_set = set(exclude_names or [])
-    feedback_records = get_feedback_records()
-    scored_foods = []
+    recommendations = recommend_delivery_food(
+        {str(key): str(value) for key, value in answers.items()},
+        exclude_names=exclude_names,
+        limit=3,
+    )
+    by_name = {food["name"]: food for food in FOOD_DB}
 
-    for food in FOOD_DB:
-        if food["name"] in exclude_set:
-            continue
+    for item in recommendations:
+        source = by_name.get(item["name"], {})
+        item["image_url"] = source.get("image_url")
+        item["short_desc"] = item.get("short_desc") or source.get("short_desc", "지금 먹기 좋은 메뉴야.")
 
-        score = score_food_attribute_matches(food, answers)
-        score += score_combo_adjustments(food, answers)
-        score += score_feedback_adjustment(food, answers, feedback_records)
-        score += score_learned_weight_adjustment(food, answers)
-        scored_foods.append((score, food))
-
-    scored_foods.sort(key=lambda item: (-item[0], item[1]["name"]))
-    return [food_to_recommendation(food, score) for score, food in scored_foods[:3]]
+    return recommendations
 
 
 def recommend_similar_food(menu_name: str) -> List[Dict[str, Any]]:
@@ -1558,11 +1565,13 @@ def is_share_prompt_message(normalized: str) -> bool:
     return normalized in share_keywords
 
 
-def parse_answer(normalized: str, options: Dict[str, str]) -> Optional[str]:
-    if normalized in options:
+def parse_answer(normalized: str, options: Any) -> Optional[str]:
+    if isinstance(options, dict) and normalized in options:
         return options[normalized]
 
-    for value in options.values():
+    values = list(options.values()) if isinstance(options, dict) else list(options or [])
+
+    for value in values:
         if normalized == normalize_utterance(value):
             return value
         if normalized == normalize_utterance(KAKAO_QUICK_REPLY_LABELS.get(value, value)):
@@ -1581,7 +1590,7 @@ def public_question_payload() -> List[Dict[str, Any]]:
                     "value": value,
                     "label": value,
                 }
-                for value in question["options"].values()
+                for value in question_options(question)
             ],
         }
         for question in QUESTIONS
@@ -1724,29 +1733,43 @@ def handle_pickly_flow(user_id: str, utterance: str) -> Dict[str, Any]:
                 "utterance": utterance,
             },
         )
-        reset_session(user_id)
-        return build_question_response(0)
+        session = reset_session(user_id)
+        question = prepare_next_kakao_question(session)
+        save_session(user_id, session)
+        return build_question_response(0, question)
 
     if session is None:
         return build_start_response()
 
-    step = session.get("step", 0)
-
-    if step >= len(QUESTIONS):
+    if session.get("recommendations") and session.get("current_question_key") is None:
         return kakao_text_response(
             text="이미 추천이 끝났어. 다시 추천받고 싶으면 아래 버튼을 눌러줘.",
             quick_replies=make_quick_replies(["다시 추천"]),
         )
 
-    current_question = QUESTIONS[step]
+    current_question = prepare_next_kakao_question(session)
+    if current_question is None:
+        recommendations = recommend_food(session.get("answers", {}))
+        session["recommendations"] = recommendations
+        session["current_question_key"] = None
+        save_session(user_id, session)
+        return build_recommendation_response(recommendations)
+
+    step = len(session_asked_keys(session))
     selected_value = parse_answer(normalized, current_question["options"])
 
     if selected_value is None:
-        return build_question_response(step)
+        save_session(user_id, session)
+        return build_question_response(step, current_question)
 
     answer_key = current_question["key"]
     session["answers"][answer_key] = selected_value
-    session["step"] = step + 1
+    asked_keys = session_asked_keys(session)
+    if answer_key not in asked_keys:
+        asked_keys.append(answer_key)
+    session["asked_keys"] = asked_keys
+    session["step"] = len(asked_keys)
+    session["current_question_key"] = None
     save_kakao_usage_event(
         user_id,
         "kakao_question_answered",
@@ -1757,12 +1780,14 @@ def handle_pickly_flow(user_id: str, utterance: str) -> Dict[str, Any]:
         },
     )
 
-    if session["step"] < len(QUESTIONS):
+    if not should_finish_kakao_recommendation(session):
+        next_question = prepare_next_kakao_question(session)
         save_session(user_id, session)
-        return build_question_response(session["step"])
+        return build_question_response(session["step"], next_question)
 
     recommendations = recommend_food(session["answers"])
     session["recommendations"] = recommendations
+    session["current_question_key"] = None
     save_session(user_id, session)
     save_kakao_usage_event(
         user_id,

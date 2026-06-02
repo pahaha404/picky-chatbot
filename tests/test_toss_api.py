@@ -7,23 +7,30 @@ from main import ANSWER_KEYS, QUESTIONS, app
 
 
 VALID_ANSWERS = {
-    "situation": "혼밥",
-    "meal_goal": "든든한 식사",
-    "taste_profile": "매콤",
-    "main_ingredient": "고기",
-    "form": "밥",
-    "spice_level": "매콤",
-    "eating_style": "빨리 먹기",
+    "craving": "밥",
+    "cuisine": "한식",
+    "spice": "매콤",
+    "soup": "없음",
+    "flavor": "매콤한",
+    "main": "돼지",
+    "meat_type": "돼지",
+    "rice_style": "덮밥",
+    "noodle_style": "상관없음",
+    "soup_style": "상관없음",
+    "snack_style": "상관없음",
+    "party_food": "상관없음",
+    "dessert_type": "상관없음",
+    "cook": "볶음",
+    "situation": "혼자",
+    "avoid": "없음",
 }
 
 KAKAO_ANSWER_SEQUENCE = [
-    "혼밥",
-    "든든한 식사",
-    "매콤",
-    "고기",
     "밥",
+    "덮밥",
+    "한식",
     "매콤",
-    "빨리 먹기",
+    "돼지",
 ]
 
 
@@ -60,7 +67,12 @@ class TossApiTests(unittest.TestCase):
         body = response.json()
         self.assertEqual(body["total"], len(QUESTIONS))
         self.assertEqual([item["key"] for item in body["questions"]], ANSWER_KEYS)
-        self.assertEqual(body["questions"][0]["options"][0]["label"], "혼밥")
+        self.assertEqual(body["questions"][0]["key"], "craving")
+        self.assertEqual(body["questions"][0]["options"][0]["label"], "밥")
+        self.assertIn(
+            {"value": "치킨피자", "label": "치킨피자"},
+            body["questions"][0]["options"],
+        )
 
     def test_recommend_rejects_missing_answers(self):
         response = self.client.post(
@@ -68,7 +80,7 @@ class TossApiTests(unittest.TestCase):
             json={
                 "userId": "test-user",
                 "answers": {
-                    "situation": "혼밥",
+                    "craving": "밥",
                 },
             },
         )
@@ -83,7 +95,7 @@ class TossApiTests(unittest.TestCase):
                 "userId": "test-user",
                 "answers": {
                     **VALID_ANSWERS,
-                    "spice_level": "용암맛",
+                    "spice": "용암맛",
                 },
             },
         )
@@ -207,30 +219,33 @@ class TossApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         output = response.json()["template"]["outputs"][0]
         card = output["basicCard"]
-        self.assertEqual(card["title"], "1. 누구랑 먹어?")
+        self.assertEqual(card["title"], "1. 오늘 당기는 건?")
         self.assertIn("/static/picky/picky-question-card.png", card["thumbnail"]["imageUrl"])
-        self.assertEqual(len(response.json()["template"]["quickReplies"]), 5)
+        self.assertIn(
+            {"action": "message", "label": "치킨/피자", "messageText": "치킨피자"},
+            response.json()["template"]["quickReplies"],
+        )
 
     def test_kakao_quick_reply_labels_are_short_and_still_parse(self):
         user_id = "kakao-short-label-user"
         self.post_kakao_skill(user_id, "오늘 뭐 먹지")
 
-        response = self.post_kakao_skill(user_id, "혼밥")
+        response = self.post_kakao_skill(user_id, "밥")
         card = response.json()["template"]["outputs"][0]["basicCard"]
-        self.assertEqual(card["title"], "2. 오늘 필요한 느낌은?")
+        self.assertEqual(card["title"], "2. 밥 메뉴라면?")
         quick_replies = response.json()["template"]["quickReplies"]
         self.assertEqual(
             [item["label"] for item in quick_replies],
-            ["든든", "가볍게", "국물", "매운맛", "새로운"],
+            ["덮밥", "비빔밥", "김밥", "죽", "백반", "상관없음"],
         )
         self.assertEqual(
             [item["messageText"] for item in quick_replies],
-            ["든든한 식사", "가볍고 깔끔", "속 따뜻한 국물", "스트레스 풀 매운맛", "새로운 메뉴"],
+            ["덮밥", "비빔밥", "김밥", "죽", "백반", "상관없음"],
         )
 
-        response = self.post_kakao_skill(user_id, "든든")
+        response = self.post_kakao_skill(user_id, "덮밥")
         card = response.json()["template"]["outputs"][0]["basicCard"]
-        self.assertEqual(card["title"], "3. 맛 방향은?")
+        self.assertEqual(card["title"], "3. 음식 계열은?")
 
     def test_kakao_feedback_response_uses_picky_character_card(self):
         user_id = "kakao-feedback-card-user"
@@ -291,9 +306,9 @@ class TossApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertEqual(body["uniqueUsers"], 1)
-        self.assertEqual(body["eventsTotal"], 10)
+        self.assertEqual(body["eventsTotal"], 8)
         self.assertEqual(body["events"]["kakao_start"], 1)
-        self.assertEqual(body["events"]["kakao_question_answered"], 7)
+        self.assertEqual(body["events"]["kakao_question_answered"], 5)
         self.assertEqual(body["events"]["kakao_recommendation_completed"], 1)
         self.assertEqual(body["events"]["kakao_feedback_clicked"], 1)
 
