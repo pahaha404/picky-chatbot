@@ -1716,8 +1716,10 @@ def handle_pickly_flow(user_id: str, utterance: str) -> Dict[str, Any]:
 
     if is_reset_message(normalized):
         save_kakao_usage_event(user_id, "kakao_restart", {})
-        reset_session(user_id)
-        return build_question_response(0)
+        session = reset_session(user_id)
+        question = prepare_next_kakao_question(session)
+        save_session(user_id, session)
+        return build_question_response(0, question)
 
     if is_share_prompt_message(normalized):
         save_kakao_usage_event(user_id, "kakao_share_prompt", {})
