@@ -116,17 +116,39 @@ QUESTION_WEIGHTS = {
     "situation": 3.0,
 }
 
-SPECIALIZED_BY_CRAVING = {
-    "밥": "rice_style",
-    "면": "noodle_style",
-    "국물": "soup_style",
-    "고기": "meat_type",
-    "분식": "snack_style",
-    "치킨피자": "party_food",
-    "디저트": "dessert_type",
+BRANCH_QUESTION_ROUTES = {
+    "밥": ("rice_style", "spice", "main", "avoid"),
+    "면": ("noodle_style", "spice", "soup", "avoid"),
+    "국물": ("soup_style", "spice", "main", "avoid"),
+    "고기": ("meat_type", "cook", "situation", "spice"),
+    "분식": ("snack_style", "spice", "situation", "avoid"),
+    "치킨피자": ("party_food", "situation", "spice", "avoid"),
+    "디저트": ("dessert_type", "situation", "avoid"),
 }
-EARLY_PRIORITY_KEYS = ("cuisine", "spice")
-SKIP_CUISINE_CRAVINGS = {"분식"}
+
+DIRECT_START_ANSWERS = {
+    "치킨": {"craving": "고기", "meat_type": "닭"},
+    "치킨추천": {"craving": "고기", "meat_type": "닭"},
+    "피자": {"craving": "치킨피자", "party_food": "피자"},
+    "피자추천": {"craving": "치킨피자", "party_food": "피자"},
+    "디저트": {"craving": "디저트"},
+    "디저트추천": {"craving": "디저트"},
+}
+
+REASON_KEYS = (
+    "rice_style",
+    "noodle_style",
+    "soup_style",
+    "meat_type",
+    "snack_style",
+    "party_food",
+    "dessert_type",
+    "spice",
+    "main",
+    "cook",
+    "situation",
+)
+NEUTRAL_REASON_VALUES = {"상관없음", "기타", "없음"}
 
 
 def menu(
@@ -248,6 +270,25 @@ def question_is_available(question: Dict[str, Any], answers: Dict[str, str]) -> 
     return all(answers.get(key) == value for key, value in condition.items())
 
 
+def direct_delivery_start_answers(normalized_utterance: str) -> Optional[Dict[str, str]]:
+    answers = DIRECT_START_ANSWERS.get(normalized_utterance)
+    return dict(answers) if answers else None
+
+
+def answer_match_strength(key: str, selected: str, profile: Dict[str, str]) -> float:
+    expected = profile.get(key)
+    if expected == selected:
+        return 1.0
+
+    if selected in {"상관없음", "기타"} and expected in {selected, "상관없음", "기타"}:
+        return 0.4
+
+    if key == "meat_type" and profile.get("main") == selected:
+        return 0.85
+
+    return 0.0
+
+
 def score_menu(menu_item: Dict[str, Any], answers: Dict[str, str]) -> float:
     profile = menu_item["profile"]
     score = 0.0
@@ -258,20 +299,37 @@ def score_menu(menu_item: Dict[str, Any], answers: Dict[str, str]) -> float:
             score += avoid_penalty(menu_item, selected)
             continue
 
-        expected = profile.get(key)
-        if expected is None:
-            continue
-
-        if selected == expected:
-            score += QUESTION_WEIGHTS.get(key, 1.0)
+        match_strength = answer_match_strength(key, selected, profile)
+        if match_strength > 0:
+            score += QUESTION_WEIGHTS.get(key, 1.0) * match_strength
             matched += 1
-        elif selected in {"상관없음", "기타"} and expected in {selected, "상관없음", "기타"}:
-            score += QUESTION_WEIGHTS.get(key, 1.0) * 0.4
 
     if answers and matched == len([key for key in answers if key != "avoid" and key in profile]):
         score += 0.001 * len(profile)
 
     return score
+
+
+def build_recommendation_reason(menu_item: Dict[str, Any], answers: Dict[str, str]) -> str:
+    profile = menu_item["profile"]
+    matched_values: List[str] = []
+
+    for key in REASON_KEYS:
+        selected = answers.get(key)
+        if not selected or selected in NEUTRAL_REASON_VALUES:
+            continue
+        if answer_match_strength(key, selected, profile) > 0:
+            matched_values.append(selected)
+
+    unique_values = list(dict.fromkeys(matched_values))[:3]
+    if unique_values:
+        return f"{', '.join(unique_values)} 선택과 잘 맞아서 골랐어."
+
+    craving = answers.get("craving")
+    if craving and craving not in NEUTRAL_REASON_VALUES:
+        return f"{craving} 쪽 후보 중 가장 잘 맞아서 골랐어."
+
+    return f"{menu_item['delivery_category']} 후보 중 가장 무난해서 골랐어."
 
 
 def avoid_penalty(menu_item: Dict[str, Any], selected: str) -> float:
@@ -310,20 +368,15 @@ def recommend_delivery_food(
             "category": menu_item["category"],
             "delivery_category": menu_item["delivery_category"],
             "tags": menu_item["tags"],
+            "reason": build_recommendation_reason(menu_item, answers),
         }
         for score, menu_item in scored[:limit]
     ]
 
 
 def choose_next_question(answers: Dict[str, str], asked_keys: Set[str]) -> Optional[Dict[str, Any]]:
-    specialized_key = SPECIALIZED_BY_CRAVING.get(answers.get("craving"))
-    if specialized_key and specialized_key not in asked_keys:
-        return QUESTION_BY_KEY[specialized_key]
-
-    for key in EARLY_PRIORITY_KEYS:
+    for key in BRANCH_QUESTION_ROUTES.get(answers.get("craving"), ()):
         question = QUESTION_BY_KEY[key]
-        if key == "cuisine" and answers.get("craving") in SKIP_CUISINE_CRAVINGS:
-            continue
         if key not in asked_keys and question_is_available(question, answers):
             return question
 

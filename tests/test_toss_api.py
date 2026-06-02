@@ -28,9 +28,9 @@ VALID_ANSWERS = {
 KAKAO_ANSWER_SEQUENCE = [
     "밥",
     "덮밥",
-    "한식",
     "매콤",
     "돼지",
+    "없음",
 ]
 
 
@@ -249,7 +249,15 @@ class TossApiTests(unittest.TestCase):
 
         response = self.post_kakao_skill(user_id, "덮밥")
         card = response.json()["template"]["outputs"][0]["basicCard"]
-        self.assertEqual(card["title"], "3. 음식 계열은?")
+        self.assertEqual(card["title"], "3. 매운 정도는?")
+
+    def test_kakao_direct_chicken_request_uses_meat_branch(self):
+        response = self.post_kakao_skill("kakao-direct-chicken-user", "치킨 추천")
+
+        self.assertEqual(response.status_code, 200)
+        card = response.json()["template"]["outputs"][0]["basicCard"]
+        self.assertEqual(card["title"], "3. 조리 방법은?")
+        self.assertIn("튀김", [item["messageText"] for item in response.json()["template"]["quickReplies"]])
 
     def test_kakao_adaptive_flow_persists_question_state_with_supabase(self):
         class MemorySupabase:
@@ -296,7 +304,7 @@ class TossApiTests(unittest.TestCase):
         response = self.post_kakao_skill(user_id, "덮밥")
 
         card = response.json()["template"]["outputs"][0]["basicCard"]
-        self.assertEqual(card["title"], "3. 음식 계열은?")
+        self.assertEqual(card["title"], "3. 매운 정도는?")
 
     def test_kakao_feedback_response_uses_picky_character_card(self):
         user_id = "kakao-feedback-card-user"
@@ -326,6 +334,8 @@ class TossApiTests(unittest.TestCase):
             {"action": "message", "label": "공유", "messageText": "친구에게 공유"},
             quick_replies,
         )
+        card = response.json()["template"]["outputs"][0]["carousel"]["items"][0]
+        self.assertIn("이유:", card["description"])
 
     def test_kakao_share_prompt_returns_invite_copy_and_tracks_event(self):
         response = self.post_kakao_skill("kakao-share-user", "친구에게 공유")

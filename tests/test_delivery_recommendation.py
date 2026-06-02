@@ -96,6 +96,59 @@ class DeliveryRecommendationTests(unittest.TestCase):
         self.assertNotEqual(next_question["key"], "cuisine")
         self.assertEqual(next_question["key"], "spice")
 
+    def test_branch_routes_do_not_fall_back_to_common_cuisine_order(self):
+        self.assertEqual(
+            choose_next_question(
+                {"craving": "밥", "rice_style": "덮밥"},
+                {"craving", "rice_style"},
+            )["key"],
+            "spice",
+        )
+        self.assertEqual(
+            choose_next_question(
+                {"craving": "고기", "meat_type": "닭"},
+                {"craving", "meat_type"},
+            )["key"],
+            "cook",
+        )
+        self.assertEqual(
+            choose_next_question(
+                {"craving": "분식", "snack_style": "떡볶이"},
+                {"craving", "snack_style"},
+            )["key"],
+            "spice",
+        )
+
+    def test_chicken_can_be_reached_from_meat_branch(self):
+        recommendations = recommend_delivery_food(
+            {
+                "craving": "고기",
+                "meat_type": "닭",
+                "cook": "튀김",
+                "situation": "야식",
+                "spice": "안매움",
+            },
+            limit=3,
+        )
+
+        self.assertEqual(recommendations[0]["name"], "후라이드치킨")
+
+    def test_recommendation_reason_explains_matched_branch(self):
+        recommendations = recommend_delivery_food(
+            {
+                "craving": "밥",
+                "rice_style": "덮밥",
+                "spice": "매콤",
+                "main": "돼지",
+                "avoid": "없음",
+            },
+            limit=1,
+        )
+
+        self.assertIn("reason", recommendations[0])
+        self.assertIn("덮밥", recommendations[0]["reason"])
+        self.assertIn("매콤", recommendations[0]["reason"])
+
 
 if __name__ == "__main__":
     unittest.main()

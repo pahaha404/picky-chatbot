@@ -14,6 +14,7 @@ from delivery_recommendation import (
     DELIVERY_QUESTIONS,
     QUESTION_BY_KEY as DELIVERY_QUESTION_BY_KEY,
     choose_next_question,
+    direct_delivery_start_answers,
     recommend_delivery_food,
 )
 
@@ -879,9 +880,14 @@ def build_recommendation_response(recommendations: List[Dict[str, Any]]) -> Dict
     cards = []
 
     for item in recommendations[:3]:
+        description = item.get("short_desc", "지금 먹기 좋은 메뉴야.")
+        reason = item.get("reason")
+        if reason:
+            description = f"{description}\n이유: {reason}"
+
         card: Dict[str, Any] = {
             "title": item["name"],
-            "description": item.get("short_desc", "지금 먹기 좋은 메뉴야."),
+            "description": description,
             "buttons": [
                 {
                     "action": "message",
@@ -1641,6 +1647,7 @@ def toss_recommendation_payload(recommendations: List[Dict[str, Any]]) -> List[D
             "name": item["name"],
             "score": item.get("score", 0),
             "shortDesc": item.get("short_desc", "지금 먹기 좋은 메뉴야."),
+            "reason": item.get("reason"),
             "imageUrl": item.get("image_url"),
             "category": item.get("category"),
             "tags": item.get("tags", []),
@@ -1758,6 +1765,30 @@ def handle_pickly_flow(user_id: str, utterance: str) -> Dict[str, Any]:
         question = prepare_next_kakao_question(session)
         save_session(user_id, session)
         return build_question_response(0, question)
+
+    direct_answers = direct_delivery_start_answers(normalized)
+    if direct_answers is not None:
+        save_kakao_usage_event(
+            user_id,
+            "kakao_start",
+            {
+                "campaign": "direct_menu",
+                "utterance": utterance,
+                "answers": direct_answers,
+            },
+        )
+        session = reset_session(user_id)
+        session["answers"].update(direct_answers)
+        session["asked_keys"] = [key for key in direct_answers if key in QUESTION_BY_KEY]
+        session["step"] = len(session["asked_keys"])
+        question = prepare_next_kakao_question(session)
+        save_session(user_id, session)
+        if question is None:
+            recommendations = recommend_food(session["answers"])
+            session["recommendations"] = recommendations
+            save_session(user_id, session)
+            return build_recommendation_response(recommendations)
+        return build_question_response(session["step"], question)
 
     if session is None:
         return build_start_response()
