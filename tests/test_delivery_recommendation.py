@@ -100,27 +100,30 @@ class DeliveryRecommendationTests(unittest.TestCase):
     def test_first_question_stays_on_core_food_shapes(self):
         first_question = next(question for question in DELIVERY_QUESTIONS if question["key"] == "craving")
 
-        self.assertEqual(first_question["options"], ["밥", "면", "국물", "고기", "분식", "기타", "상관없음"])
+        self.assertEqual(first_question["options"], ["밥", "면", "국물", "고기", "분식", "상관없음"])
 
-    def test_escape_options_are_available_where_needed(self):
+    def test_escape_options_do_not_mix_other_and_anything(self):
         question_by_key = {question["key"]: question for question in DELIVERY_QUESTIONS}
 
-        for key in ("craving", "cuisine", "soup", "flavor", "main", "cook", "situation"):
-            with self.subTest(key=key, option="기타"):
-                self.assertIn("기타", question_by_key[key]["options"])
+        for question in DELIVERY_QUESTIONS:
+            with self.subTest(key=question["key"]):
+                self.assertFalse(
+                    {"기타", "상관없음"}.issubset(set(question["options"]))
+                )
 
-        for key in ("craving", "cuisine", "spice", "soup", "flavor", "main", "cook", "situation"):
+        self.assertIn("기타", question_by_key["cuisine"]["options"])
+        self.assertNotIn("상관없음", question_by_key["cuisine"]["options"])
+
+        for key in ("craving", "spice", "soup", "flavor", "main", "cook", "situation"):
             with self.subTest(key=key, option="상관없음"):
                 self.assertIn("상관없음", question_by_key[key]["options"])
+                self.assertNotIn("기타", question_by_key[key]["options"])
 
-        self.assertIn("기타", question_by_key["avoid"]["options"])
+        self.assertNotIn("기타", question_by_key["avoid"]["options"])
+        self.assertNotIn("상관없음", question_by_key["avoid"]["options"])
         self.assertIn("없음", question_by_key["avoid"]["options"])
 
-    def test_other_and_anything_top_level_answers_use_broad_route(self):
-        self.assertEqual(
-            choose_next_question({"craving": "기타"}, {"craving"})["key"],
-            "spice",
-        )
+    def test_anything_top_level_answer_uses_broad_route(self):
         self.assertEqual(
             choose_next_question({"craving": "상관없음"}, {"craving"})["key"],
             "spice",
