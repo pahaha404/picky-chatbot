@@ -2,6 +2,7 @@ import unittest
 
 from delivery_recommendation import (
     DELIVERY_MENUS,
+    DELIVERY_QUESTIONS,
     answer_profile_for_menu,
     choose_next_question,
     recommend_delivery_food,
@@ -80,6 +81,20 @@ class DeliveryRecommendationTests(unittest.TestCase):
             choose_next_question({"craving": "디저트"}, {"craving"})["key"],
             "dessert_type",
         )
+
+    def test_first_question_stays_on_core_food_shapes(self):
+        first_question = next(question for question in DELIVERY_QUESTIONS if question["key"] == "craving")
+
+        self.assertEqual(first_question["options"], ["밥", "면", "국물", "고기", "분식"])
+
+    def test_snack_flow_does_not_ask_cuisine_after_snack_detail(self):
+        next_question = choose_next_question(
+            {"craving": "분식", "snack_style": "상관없음"},
+            {"craving", "snack_style"},
+        )
+
+        self.assertNotEqual(next_question["key"], "cuisine")
+        self.assertEqual(next_question["key"], "spice")
 
 
 if __name__ == "__main__":

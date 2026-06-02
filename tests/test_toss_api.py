@@ -69,7 +69,7 @@ class TossApiTests(unittest.TestCase):
         self.assertEqual([item["key"] for item in body["questions"]], ANSWER_KEYS)
         self.assertEqual(body["questions"][0]["key"], "craving")
         self.assertEqual(body["questions"][0]["options"][0]["label"], "밥")
-        self.assertIn(
+        self.assertNotIn(
             {"value": "치킨피자", "label": "치킨피자"},
             body["questions"][0]["options"],
         )
@@ -222,8 +222,8 @@ class TossApiTests(unittest.TestCase):
         self.assertEqual(card["title"], "1. 오늘 당기는 건?")
         self.assertIn("/static/picky/picky-question-card.png", card["thumbnail"]["imageUrl"])
         self.assertIn("1. 밥", card["description"])
-        self.assertIn("7. 디저트", card["description"])
-        self.assertIn(
+        self.assertNotIn("치킨/피자", card["description"])
+        self.assertNotIn(
             {"action": "message", "label": "치킨/피자", "messageText": "치킨피자"},
             response.json()["template"]["quickReplies"],
         )

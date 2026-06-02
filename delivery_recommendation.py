@@ -9,7 +9,7 @@ DELIVERY_QUESTIONS: List[Dict[str, Any]] = [
     {
         "key": "craving",
         "text": "오늘 당기는 건?",
-        "options": ["밥", "면", "국물", "고기", "분식", "치킨피자", "디저트"],
+        "options": ["밥", "면", "국물", "고기", "분식"],
     },
     {
         "key": "cuisine",
@@ -126,6 +126,7 @@ SPECIALIZED_BY_CRAVING = {
     "디저트": "dessert_type",
 }
 EARLY_PRIORITY_KEYS = ("cuisine", "spice")
+SKIP_CUISINE_CRAVINGS = {"분식"}
 
 
 def menu(
@@ -321,6 +322,8 @@ def choose_next_question(answers: Dict[str, str], asked_keys: Set[str]) -> Optio
 
     for key in EARLY_PRIORITY_KEYS:
         question = QUESTION_BY_KEY[key]
+        if key == "cuisine" and answers.get("craving") in SKIP_CUISINE_CRAVINGS:
+            continue
         if key not in asked_keys and question_is_available(question, answers):
             return question
 
