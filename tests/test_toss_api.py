@@ -221,6 +221,8 @@ class TossApiTests(unittest.TestCase):
         card = output["basicCard"]
         self.assertEqual(card["title"], "1. 오늘 당기는 건?")
         self.assertIn("/static/picky/picky-question-card.png", card["thumbnail"]["imageUrl"])
+        self.assertIn("1. 밥", card["description"])
+        self.assertIn("7. 디저트", card["description"])
         self.assertIn(
             {"action": "message", "label": "치킨/피자", "messageText": "치킨피자"},
             response.json()["template"]["quickReplies"],
@@ -233,6 +235,8 @@ class TossApiTests(unittest.TestCase):
         response = self.post_kakao_skill(user_id, "밥")
         card = response.json()["template"]["outputs"][0]["basicCard"]
         self.assertEqual(card["title"], "2. 밥 메뉴라면?")
+        self.assertIn("1. 덮밥", card["description"])
+        self.assertIn("6. 상관없음", card["description"])
         quick_replies = response.json()["template"]["quickReplies"]
         self.assertEqual(
             [item["label"] for item in quick_replies],

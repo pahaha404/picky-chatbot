@@ -862,10 +862,14 @@ def build_question_response(step: int, question: Optional[Dict[str, Any]] = None
     question = question or QUESTIONS[step]
     options = question_options(question)
     question_title = KAKAO_QUESTION_TITLES.get(question["key"], question["text"])
+    option_lines = "\n\n".join(
+        f"{index}. {KAKAO_QUICK_REPLY_LABELS.get(option, option)}"
+        for index, option in enumerate(options, start=1)
+    )
 
     return kakao_card_response(
         title=f"{step + 1}. {question_title}",
-        description="피키가 딱 맞는 메뉴를 찾는 중이야. 아래에서 하나만 골라줘.",
+        description=option_lines,
         mood="question",
         quick_replies=make_quick_replies(options),
     )
